@@ -22,8 +22,8 @@ export class Mob {
   protected isOnGround = false;
 
   // Dimensions (AABB)
-  protected readonly width = 0.5;
-  protected readonly height = 1.8;
+  public readonly width = 0.5;
+  public readonly height = 1.8;
 
   // AI
   protected stateTimer = 0;

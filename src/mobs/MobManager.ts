@@ -95,7 +95,13 @@ export class MobManager {
 
       if (y !== -1) {
         // Found valid ground
-        const zombie = new Zombie(this.world, this.scene, x, y + 1, z);
+        const zombie = new Zombie(
+          this.world,
+          this.scene,
+          x + 0.5,
+          y + 1,
+          z + 0.5,
+        );
         this.mobs.push(zombie);
         // console.log(`Spawned Zombie at ${x}, ${y+1}, ${z}`);
         break; // Spawned one, stop trying

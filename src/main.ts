@@ -180,6 +180,7 @@ const blockInteraction = new BlockInteraction(
   () => toggleInventory(true),
   cursorMesh,
   crackMesh,
+  () => mobManager.mobs,
 );
 
 const game = new Game(

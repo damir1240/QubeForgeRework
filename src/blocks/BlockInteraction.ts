@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { PerspectiveCamera } from "three";
 import { Scene } from "three";
 import { World, BLOCK } from "../world/World";
+import { Mob } from "../mobs/Mob";
 import {
   PLAYER_HALF_WIDTH,
   PLAYER_HEIGHT,
@@ -18,6 +19,7 @@ export class BlockInteraction {
   private readonly MAX_DISTANCE = 6;
 
   private getSelectedSlotItem: () => { id: number; count: number };
+  private getMobs?: () => Mob[];
   private onPlaceBlock?: (
     x: number,
     y: number,
@@ -40,6 +42,7 @@ export class BlockInteraction {
     onOpenCraftingTable?: () => void,
     cursorMesh?: THREE.Mesh,
     crackMesh?: THREE.Mesh,
+    getMobs?: () => Mob[],
   ) {
     this.camera = camera;
     this.scene = scene;
@@ -49,6 +52,7 @@ export class BlockInteraction {
     this.onOpenCraftingTable = onOpenCraftingTable;
     this.cursorMesh = cursorMesh;
     this.crackMesh = crackMesh;
+    this.getMobs = getMobs;
     this.raycaster = new THREE.Raycaster();
   }
 
@@ -121,6 +125,34 @@ export class BlockInteraction {
           ) {
             // Cannot place block inside player
             return;
+          }
+
+          // Check collision with mobs
+          if (this.getMobs) {
+            const mobs = this.getMobs();
+            let mobCollision = false;
+            for (const mob of mobs) {
+              const mobPos = mob.mesh.position;
+              const mobMinX = mobPos.x - mob.width / 2;
+              const mobMaxX = mobPos.x + mob.width / 2;
+              const mobMinY = mobPos.y;
+              const mobMaxY = mobPos.y + mob.height;
+              const mobMinZ = mobPos.z - mob.width / 2;
+              const mobMaxZ = mobPos.z + mob.width / 2;
+
+              if (
+                mobMinX < blockMaxX &&
+                mobMaxX > blockMinX &&
+                mobMinY < blockMaxY &&
+                mobMaxY > blockMinY &&
+                mobMinZ < blockMaxZ &&
+                mobMaxZ > blockMinZ
+              ) {
+                mobCollision = true;
+                break;
+              }
+            }
+            if (mobCollision) return;
           }
 
           if (this.onPlaceBlock) {
