@@ -12,6 +12,12 @@
         />
     </head>
     <body>
+        <div id="loading-screen">
+            <h1 style="font-size: 30px; margin-bottom: 20px">Загрузка...</h1>
+            <div id="loading-bar-container">
+                <div id="loading-bar-inner"></div>
+            </div>
+        </div>
         <script>
             if ("serviceWorker" in navigator) {
                 navigator.serviceWorker.register("/sw.js");

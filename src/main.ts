@@ -473,5 +473,61 @@ setInterval(() => {
   }
 }, 30000);
 
-// Start
-game.start();
+// Start Loading Sequence
+const loadingScreen = document.getElementById("loading-screen")!;
+const loadingBarInner = document.getElementById("loading-bar-inner")!;
+const bgVideo = document.getElementById("bg-video") as HTMLVideoElement;
+
+let loadProgress = 0;
+const startTime = performance.now();
+const MIN_LOAD_TIME = 2000; // Minimum visibility time in ms
+
+// Force check for video ready state if event missed
+const checkVideoReady = () => {
+  return bgVideo.readyState >= 3; // HAVE_FUTURE_DATA or better
+};
+
+// Simulate/Track Progress
+const updateLoading = () => {
+  const elapsed = performance.now() - startTime;
+  const timeProgress = Math.min((elapsed / MIN_LOAD_TIME) * 100, 100);
+
+  // We can also check document.readyState, but main.ts runs, so it's mostly interactive.
+  // Video loading is the main heavy asset we can track easily.
+  let videoProgress = 0;
+  if (bgVideo.buffered.length > 0) {
+    const duration = bgVideo.duration || 1; // Avoid divide by zero
+    // Approximation: just check if we have *some* buffer
+    videoProgress = 100; // Assume ready if buffered
+  } else if (checkVideoReady()) {
+    videoProgress = 100;
+  } else {
+    // Fake trickle if video is taking time
+    videoProgress = 50;
+  }
+
+  // Weighted progress
+  // 60% time (to show logo), 40% video
+  const totalProgress = timeProgress * 0.6 + videoProgress * 0.4;
+
+  loadProgress = Math.max(loadProgress, totalProgress); // Never go back
+  loadingBarInner.style.width = `${loadProgress}%`;
+
+  if (loadProgress >= 99 && elapsed >= MIN_LOAD_TIME) {
+    // Done
+    loadingBarInner.style.width = "100%";
+    setTimeout(() => {
+      loadingScreen.style.transition = "opacity 0.5s";
+      loadingScreen.style.opacity = "0";
+      setTimeout(() => {
+        loadingScreen.style.display = "none";
+        game.start();
+      }, 500);
+    }, 200);
+  } else {
+    requestAnimationFrame(updateLoading);
+  }
+};
+
+// Start the loop
+requestAnimationFrame(updateLoading);
