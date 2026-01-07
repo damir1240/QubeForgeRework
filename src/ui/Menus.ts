@@ -11,6 +11,7 @@ export class Menus {
   private uiContainer: HTMLElement;
   private mobileUi: HTMLElement | null;
   private bgVideo: HTMLVideoElement;
+  private menuMusic: HTMLAudioElement;
   private crosshair: HTMLElement;
 
   // Buttons
@@ -37,6 +38,21 @@ export class Menus {
     this.mobileUi = document.getElementById("mobile-ui");
     this.bgVideo = document.getElementById("bg-video") as HTMLVideoElement;
     this.crosshair = document.getElementById("crosshair")!;
+
+    this.menuMusic = new Audio("/menu_music.mp3");
+    this.menuMusic.loop = true;
+    this.menuMusic.volume = 0.3;
+
+    // Autoplay policy handling
+    document.addEventListener(
+      "click",
+      () => {
+        if (this.mainMenu.style.display === "flex" && this.menuMusic.paused) {
+          this.menuMusic.play().catch(() => {});
+        }
+      },
+      { once: true },
+    );
 
     this.btnNewGame = document.getElementById("btn-new-game")!;
     this.btnContinue = document.getElementById(
@@ -122,6 +138,8 @@ export class Menus {
     this.uiContainer.style.display = "none";
     this.bgVideo.style.display = "block"; // Show video
     this.crosshair.style.display = "none";
+
+    this.menuMusic.play().catch(() => {});
 
     if (this.mobileUi) this.mobileUi.style.display = "none";
 
@@ -252,6 +270,8 @@ export class Menus {
       this.settingsMenu.style.display = "none";
       this.uiContainer.style.display = "flex";
       this.bgVideo.style.display = "none"; // Hide video
+      this.menuMusic.pause();
+      this.menuMusic.currentTime = 0;
       this.crosshair.style.display = "block";
 
       if (this.mobileUi && this.game.renderer.getIsMobile()) {
