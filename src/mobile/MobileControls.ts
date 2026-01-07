@@ -34,6 +34,8 @@ export class MobileControls {
   private initJoystick() {
     this.joystickZone.addEventListener("touchstart", (e) => {
       e.preventDefault();
+      if (this.game.gameState.getPaused()) return;
+
       if (this.isDraggingStick) return;
 
       const touch = e.changedTouches[0];
@@ -50,6 +52,8 @@ export class MobileControls {
 
     this.joystickZone.addEventListener("touchmove", (e) => {
       e.preventDefault();
+      if (this.game.gameState.getPaused()) return;
+
       if (!this.isDraggingStick || this.joystickTouchId === null) return;
 
       let touch: Touch | undefined;
@@ -118,6 +122,8 @@ export class MobileControls {
 
     btnAttack.addEventListener("touchstart", (e) => {
       e.preventDefault();
+      if (this.game.gameState.getPaused()) return;
+
       if (this.attackTouchId !== null) return;
 
       const touch = e.changedTouches[0];
@@ -133,6 +139,8 @@ export class MobileControls {
 
     btnAttack.addEventListener("touchmove", (e) => {
       e.preventDefault();
+      if (this.game.gameState.getPaused()) return;
+
       if (this.attackTouchId === null) return;
 
       let touch: Touch | undefined;
@@ -219,6 +227,7 @@ export class MobileControls {
 
   private initCameraLook() {
     document.addEventListener("touchstart", (e) => {
+      if (this.game.gameState.getPaused()) return;
       if (this.lookTouchId !== null) return;
 
       const target = e.target as HTMLElement;
@@ -242,6 +251,7 @@ export class MobileControls {
     document.addEventListener(
       "touchmove",
       (e) => {
+        if (this.game.gameState.getPaused()) return;
         if (this.lookTouchId === null) return;
         if (e.cancelable) e.preventDefault();
 
