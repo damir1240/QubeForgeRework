@@ -354,7 +354,7 @@ const onKeyDown = (event: KeyboardEvent) => {
     case "Escape":
       const invMenu = document.getElementById("inventory-menu")!;
       if (invMenu.style.display === "flex") toggleInventory();
-      else {
+      else if (gameState.getGameStarted()) {
         // Only open pause menu, never close it via ESC.
         // Closing is done via "Resume" button which triggers lock -> hidePauseMenu.
         game.menus.showPauseMenu();
