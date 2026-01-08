@@ -85,6 +85,9 @@ export class MobileControls {
       const btnRun = document.getElementById("btn-run");
       if (btnRun) {
         if (isMoving) {
+          // btnRun.style.display = "flex"; // CSS handles pos, just show/hide
+          // Actually if we set it to flex here, we override CSS display: none
+          // We need to ensure position is correct. CSS sets position absolute.
           btnRun.style.display = "flex";
         } else {
           btnRun.style.display = "none";
