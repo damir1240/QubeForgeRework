@@ -381,6 +381,26 @@ export class World {
     await this.ensureChunk(cx, cz, key);
   }
 
+  public async waitForChunk(cx: number, cz: number): Promise<void> {
+    const key = `${cx},${cz}`;
+    // If already loaded in memory
+    if (this.chunksData.has(key)) return;
+
+    // Poll until loaded (simple but effective for init)
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.chunksData.has(key)) {
+          resolve();
+        } else {
+          // Trigger load if not loading? ensureChunk handles dupes
+          this.ensureChunk(cx, cz, key);
+          setTimeout(check, 100);
+        }
+      };
+      check();
+    });
+  }
+
   public getTopY(worldX: number, worldZ: number): number {
     const cx = Math.floor(worldX / this.chunkSize);
     const cz = Math.floor(worldZ / this.chunkSize);

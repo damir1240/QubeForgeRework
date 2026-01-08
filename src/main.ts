@@ -712,6 +712,11 @@ world.loadWorld().then(async (data) => {
   }
   // Load Furnaces
   await FurnaceManager.getInstance().load();
+
+  // Ensure starting chunk is loaded before hiding loading screen
+  const cx = Math.floor(controls.object.position.x / 32);
+  const cz = Math.floor(controls.object.position.z / 32);
+  await world.waitForChunk(cx, cz);
 });
 
 // Force check for video ready state if event missed

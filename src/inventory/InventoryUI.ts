@@ -70,8 +70,8 @@ export class InventoryUI {
       const draggedItem = this.dragDrop.getDraggedItem();
       if (
         draggedItem &&
-        this.inventoryMenu.style.display !== "none" &&
-        this.touchStartSlotIndex !== null
+        this.inventoryMenu.style.display !== "none"
+        // Allow dropping even if touchStartSlotIndex is null (e.g. dragged from Furnace)
       ) {
         const touch = e.changedTouches[0];
         const target = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -140,8 +140,8 @@ export class InventoryUI {
               this.handleSlotClick(targetIndex);
             }
           }
-        } else {
-          // Return to start
+        } else if (this.touchStartSlotIndex !== null) {
+          // Return to start if we know where we came from
           this.handleSlotClick(this.touchStartSlotIndex);
         }
 
