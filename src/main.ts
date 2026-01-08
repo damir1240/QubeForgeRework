@@ -384,6 +384,14 @@ function toggleInventory(
       const useFurnace = param === "furnace";
 
       controls.unlock();
+
+      // Stop Movement
+      player.physics.moveForward = false;
+      player.physics.moveBackward = false;
+      player.physics.moveLeft = false;
+      player.physics.moveRight = false;
+      player.physics.isSprinting = false;
+
       inventoryMenu.style.display = "flex";
       crosshair.style.display = "none";
 
@@ -497,6 +505,27 @@ controls.addEventListener("unlock", () => {
 
 const onKeyDown = (event: KeyboardEvent) => {
   if (game.cli.isOpen) return;
+  const inventoryMenu = document.getElementById("inventory-menu")!;
+  const isInventoryOpen = inventoryMenu.style.display === "flex";
+
+  // Prevent movement keys when inventory is open
+  if (isInventoryOpen) {
+    if (
+      [
+        "KeyW",
+        "KeyA",
+        "KeyS",
+        "KeyD",
+        "ArrowUp",
+        "ArrowLeft",
+        "ArrowDown",
+        "ArrowRight",
+        "Space",
+      ].includes(event.code)
+    ) {
+      return;
+    }
+  }
 
   switch (event.code) {
     case "Slash":

@@ -103,7 +103,6 @@ export class FurnaceUI {
       handleSlot(e, "output"),
     );
   }
-
   public open(x: number, y: number, z: number) {
     this.currentFurnacePos = { x, y, z };
     this.isOpen = true;
