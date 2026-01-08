@@ -43,6 +43,7 @@ export class Game {
   public menus: Menus;
 
   public isAttackPressed: boolean = false;
+  public isUsePressed: boolean = false;
 
   private prevTime: number = performance.now();
   private animationId: number | null = null;
@@ -162,6 +163,12 @@ export class Game {
       if (!this.blockBreaking.isBreakingNow())
         this.blockBreaking.start(this.world);
       this.player.combat.performAttack();
+    }
+
+    // Interaction / Eating
+    if (this.gameState.getGameStarted()) {
+        this.blockInteraction.update(delta, this.isUsePressed);
+        this.player.hand.setEating(this.blockInteraction.getIsEating());
     }
 
     // Entities

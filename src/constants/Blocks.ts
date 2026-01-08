@@ -24,4 +24,6 @@ export const BLOCK = {
   WOODEN_SHOVEL: 26,
   STONE_SHOVEL: 27,
   BROKEN_COMPASS: 30,
+  RAW_MEAT: 40,
+  COOKED_MEAT: 41,
 };

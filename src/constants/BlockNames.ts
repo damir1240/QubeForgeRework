@@ -23,6 +23,8 @@ export const BLOCK_NAMES: Record<number, string> = {
   26: "Деревянная лопата",
   27: "Каменная лопата",
   30: "Сломанный компас",
+  40: "Сырое мясо",
+  41: "Жареное мясо",
 };
 
 // Маппинг предметов для CLI (английские названия)
@@ -50,4 +52,6 @@ export const ITEM_MAP: Record<string, number> = {
   wooden_shovel: 26,
   stone_shovel: 27,
   broken_compass: 30,
+  raw_meat: 40,
+  cooked_meat: 41,
 };

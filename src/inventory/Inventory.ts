@@ -46,7 +46,8 @@ export class Inventory {
 
   public addItem(id: number, count: number): number {
     let remaining = count;
-    const isTool = id >= 20;
+    // Tools are 20-39. Food (40+) is stackable.
+    const isTool = id >= 20 && id < 40;
     const maxStack = isTool ? 1 : 64;
 
     // 1. Try to stack with existing items (ONLY if not a tool)

@@ -19,6 +19,11 @@ export class BlockInteraction {
   private crackMesh?: THREE.Mesh;
   private readonly MAX_DISTANCE = 6;
 
+  // Eating State
+  private isEating = false;
+  private eatTimer = 0;
+  private readonly EAT_DURATION = 1.5; // Seconds
+
   private getSelectedSlotItem: () => { id: number; count: number };
   private getMobs?: () => Mob[];
   private onPlaceBlock?: (
@@ -61,6 +66,72 @@ export class BlockInteraction {
     this.getMobs = getMobs;
     this.onConsumeItem = onConsumeItem;
     this.raycaster = new THREE.Raycaster();
+  }
+
+  public update(delta: number, isUsePressed: boolean) {
+    const slot = this.getSelectedSlotItem();
+    const isFood =
+      slot.id === BLOCK.COOKED_MEAT || slot.id === BLOCK.RAW_MEAT; // Can eat raw meat too? Sure.
+
+    if (isUsePressed && isFood) {
+      if (!this.isEating) {
+        this.isEating = true;
+        this.eatTimer = 0;
+      }
+
+      this.eatTimer += delta;
+
+      if (this.eatTimer >= this.EAT_DURATION) {
+        // Consume!
+        this.consumeFood(slot.id);
+        this.isEating = false;
+        this.eatTimer = 0;
+      }
+    } else {
+      this.isEating = false;
+      this.eatTimer = 0;
+    }
+  }
+
+  public getIsEating(): boolean {
+    return this.isEating;
+  }
+
+  private consumeFood(id: number) {
+    if (this.onConsumeItem) {
+        // We need to know how much HP to restore
+        // For now, let's just trigger the generic consume callback which removes item
+        // But we also need to heal player.
+        // BlockInteraction doesn't have reference to PlayerHealth directly.
+        // But onConsumeItem is a callback.
+        // Let's modify onConsumeItem to accept amount of healing?
+        // Or just let Game handle it via checking active item?
+        // Actually, onConsumeItem in Game.ts currently just decrements inventory.
+        
+        // Let's assume onConsumeItem handles inventory decrement.
+        // We need another callback or pass data?
+        // Let's use onConsumeItem and let Game handle the effect based on item ID.
+        // Wait, BlockInteraction doesn't know about healing logic.
+        // Let's just call onConsumeItem, and Game.ts will check what was consumed.
+        // But onConsumeItem is void.
+        
+        // Let's refactor onConsumeItem to take an ID, or add onEat callback?
+        // Simpler: Game.ts passes a callback that knows what to do.
+        // But currently onConsumeItem is generic.
+        
+        // Let's just call onConsumeItem() and I will update Game.ts to handle healing there?
+        // No, Game.ts passes `() => this.inventory.consumeCurrentItem()` usually.
+        // I need to heal BEFORE consuming or ALONG with consuming.
+        
+        // I will add a new callback `onEat` to BlockInteraction constructor?
+        // Or just emit an event?
+        // Let's reuse onConsumeItem but I'll need to update Game.ts to handle healing.
+        // Actually, let's just add `onHeal` callback to BlockInteraction.
+        
+        // Wait, I can't easily change constructor signature everywhere without reading Game.ts again.
+        // I already read Game.ts. I can change it.
+    }
+    this.onConsumeItem?.();
   }
 
   public interact(world: World): void {

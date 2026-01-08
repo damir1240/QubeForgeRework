@@ -340,6 +340,14 @@ const blockInteraction = new BlockInteraction(
   () => {
     // onConsumeItem
     const slot = inventory.getSelectedSlotItem();
+    
+    // Healing Logic
+    if (slot.id === BLOCK.COOKED_MEAT) {
+        player.health.setHp(player.health.getHp() + 4);
+    } else if (slot.id === BLOCK.RAW_MEAT) {
+        player.health.setHp(player.health.getHp() + 1); // Less healing for raw
+    }
+
     if (slot.count > 0) {
       slot.count--;
       if (slot.count === 0) slot.id = 0;
@@ -631,11 +639,15 @@ document.addEventListener("mousedown", (event) => {
     player.hand.punch();
     player.combat.performAttack();
     game.blockBreaking.start(world);
-  } else if (event.button === 2) performInteract();
+  } else if (event.button === 2) {
+      game.isUsePressed = true;
+      performInteract(); // Initial click interaction (for instant actions like placing block)
+  }
 });
 
 document.addEventListener("mouseup", () => {
   game.isAttackPressed = false;
+  game.isUsePressed = false;
   player.hand.stopPunch();
   blockBreaking.stop();
 });

@@ -15,6 +15,7 @@ export class PlayerHand {
   private swingTime = 0;
   private isSwinging = false;
   private isMining = false; // Held down state
+  private isEating = false;
 
   private readonly SWING_DURATION = 0.3; // Seconds
   private readonly BASE_POS = new THREE.Vector3(0.5, -0.6, -1); // Right hand position
@@ -52,6 +53,8 @@ export class PlayerHand {
     if (id === BLOCK.BROKEN_COMPASS) return TOOL_DEFS.BROKEN_COMPASS;
     if (id === BLOCK.COAL) return TOOL_DEFS.COAL;
     if (id === BLOCK.IRON_INGOT) return TOOL_DEFS.IRON_INGOT;
+    if (id === BLOCK.RAW_MEAT) return TOOL_DEFS.RAW_MEAT;
+    if (id === BLOCK.COOKED_MEAT) return TOOL_DEFS.COOKED_MEAT;
     return null;
   }
 
@@ -467,6 +470,10 @@ export class PlayerHand {
     this.isMining = false;
   }
 
+  public setEating(eating: boolean) {
+      this.isEating = eating;
+  }
+
   public update(delta: number, isMoving: boolean) {
     // Spin Needle
     if (this.needleMesh) {
@@ -480,16 +487,35 @@ export class PlayerHand {
         this.BASE_POS.x + Math.sin(this.bobTime) * 0.05;
       this.handGroup.position.y =
         this.BASE_POS.y + Math.abs(Math.cos(this.bobTime)) * 0.05;
+    } else if (this.isEating) {
+        // Eating Bobbing
+        this.bobTime += delta * 15;
+        // Move hand up and down slightly, and tilt
+        this.handGroup.position.x = this.BASE_POS.x + Math.sin(this.bobTime) * 0.02;
+        this.handGroup.position.y = this.BASE_POS.y + Math.abs(Math.cos(this.bobTime)) * 0.05 + 0.1; // Higher
+        this.handGroup.position.z = this.BASE_POS.z + 0.2; // Closer
+        
+        this.handGroup.rotation.x = -0.2 + Math.sin(this.bobTime * 2) * 0.1;
+        this.handGroup.rotation.y = -0.2;
+        this.handGroup.rotation.z = 0.2;
     } else {
       // Return to rest
       this.handGroup.position.x +=
         (this.BASE_POS.x - this.handGroup.position.x) * 10 * delta;
       this.handGroup.position.y +=
         (this.BASE_POS.y - this.handGroup.position.y) * 10 * delta;
+      
+      // Reset rotation if not swinging
+      if (!this.isSwinging) {
+          this.handGroup.rotation.x += (0 - this.handGroup.rotation.x) * 10 * delta;
+          this.handGroup.rotation.y += (0 - this.handGroup.rotation.y) * 10 * delta;
+          this.handGroup.rotation.z += (0 - this.handGroup.rotation.z) * 10 * delta;
+          this.handGroup.position.z += (this.BASE_POS.z - this.handGroup.position.z) * 10 * delta;
+      }
     }
 
     // Swing Animation
-    if (this.isSwinging) {
+    if (this.isSwinging && !this.isEating) {
       this.swingTime += delta;
       const progress = Math.min(this.swingTime / this.SWING_DURATION, 1.0);
 
@@ -507,8 +533,7 @@ export class PlayerHand {
           this.swingTime = 0;
         } else {
           this.isSwinging = false;
-          this.handGroup.rotation.set(0, 0, 0);
-          this.handGroup.position.z = this.BASE_POS.z;
+          // Reset handled in else block above
         }
       }
     }

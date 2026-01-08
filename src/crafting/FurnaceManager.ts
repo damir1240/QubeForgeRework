@@ -162,6 +162,7 @@ export class FurnaceManager {
 
   private getSmeltingResult(id: number): { id: number; count: number } | null {
     if (id === BLOCK.IRON_ORE) return { id: BLOCK.IRON_INGOT, count: 1 };
+    if (id === BLOCK.RAW_MEAT) return { id: BLOCK.COOKED_MEAT, count: 1 };
     // Add more here if needed
     return null;
   }

@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import { World } from "../world/World";
 import { Zombie } from "./Zombie";
+import { WildBoar } from "./WildBoar";
 import { ChunkErrorMob } from "./ChunkErrorMob";
 import { Mob } from "./Mob";
 
 import { ItemEntity } from "../entities/ItemEntity";
+import { BLOCK } from "../constants/Blocks";
 
 import { Environment } from "../world/Environment";
 import { Player } from "../player/Player";
@@ -52,7 +54,24 @@ export class MobManager {
 
       if (mob.isDead) {
         // Drop Item (Only for non-ChunkError mobs, or general zombies)
-        if (!(mob instanceof ChunkErrorMob)) {
+        if (mob instanceof WildBoar) {
+            // Drop Meat
+            const count = 1 + Math.floor(Math.random() * 2); // 1-2
+            for(let k=0; k<count; k++) {
+                 this.entities.push(
+                  new ItemEntity(
+                    this.world,
+                    this.scene,
+                    mob.mesh.position.x,
+                    mob.mesh.position.y,
+                    mob.mesh.position.z,
+                    BLOCK.RAW_MEAT,
+                    this.world.noiseTexture,
+                    TOOL_TEXTURES[BLOCK.RAW_MEAT] ? TOOL_TEXTURES[BLOCK.RAW_MEAT].texture : null
+                  ),
+                );
+            }
+        } else if (!(mob instanceof ChunkErrorMob)) {
             this.entities.push(
               new ItemEntity(
                 this.world,
@@ -92,6 +111,9 @@ export class MobManager {
       // Attempt to spawn regular mobs at night
       if (!isDay) {
         this.attemptSpawnZombie(playerPos);
+      } else {
+        // Spawn passive mobs during day
+        this.attemptSpawnPassive(playerPos);
       }
       
       // Attempt to spawn ChunkError (Only at night, 90-150s cooldown)
@@ -117,6 +139,29 @@ export class MobManager {
               const mob = new Zombie(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
               this.mobs.push(mob);
               break;
+          }
+      }
+  }
+
+  private attemptSpawnPassive(playerPos: THREE.Vector3) {
+      // Try 10 times
+      for (let i = 0; i < 10; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 20 + Math.random() * 20;
+          const x = Math.floor(playerPos.x + Math.sin(angle) * dist);
+          const z = Math.floor(playerPos.z + Math.cos(angle) * dist);
+          const y = this.findSurfaceY(x, z);
+
+          if (y !== -1) {
+              // Check block below is Grass (ID 1)
+              // We need to check block type. World.ts has getBlock(x,y,z).
+              // Assuming ID 1 is Grass.
+              const blockId = this.world.getBlock(x, y, z);
+              if (blockId === 1) { // Only spawn on grass
+                  const mob = new WildBoar(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
+                  this.mobs.push(mob);
+                  break;
+              }
           }
       }
   }

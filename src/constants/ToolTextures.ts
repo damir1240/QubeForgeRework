@@ -168,7 +168,28 @@ const COLORS = {
   BLACK: "#000000", // Border
   COAL: "#2A2A2A", // Coal Color
   IRON: "#E6E6E6", // Iron Ingot Color (Lighter than Silver)
+  RAW_MEAT: "#CF5C5C", // Pinkish Red
+  COOKED_MEAT: "#8B4513", // Brown
 };
+
+const MEAT_PATTERN = [
+  "0000000000000000",
+  "0000000000000000",
+  "0000000022200000",
+  "0000002222220000",
+  "0000022222222000",
+  "0000222222222200",
+  "0000222222222200",
+  "0000222222222200",
+  "0000022222222000",
+  "0000002222220000",
+  "0000000222000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+  "0000000000000000",
+];
 
 export interface GeneratedTexture {
   texture: THREE.CanvasTexture;
@@ -280,6 +301,8 @@ export const TOOL_DEFS = {
   BROKEN_COMPASS: { pattern: COMPASS_PATTERN, color: COLORS.SILVER },
   COAL: { pattern: COAL_PATTERN, color: COLORS.COAL },
   IRON_INGOT: { pattern: INGOT_PATTERN, color: COLORS.IRON },
+  RAW_MEAT: { pattern: MEAT_PATTERN, color: COLORS.RAW_MEAT },
+  COOKED_MEAT: { pattern: MEAT_PATTERN, color: COLORS.COOKED_MEAT },
 };
 
 // Tool Textures Registry
@@ -350,6 +373,16 @@ export function initToolTextures() {
       TOOL_DEFS.IRON_INGOT.color,
     );
 
+    TOOL_TEXTURES[BLOCK.RAW_MEAT] = generateToolTexture(
+      TOOL_DEFS.RAW_MEAT.pattern,
+      TOOL_DEFS.RAW_MEAT.color,
+    );
+
+    TOOL_TEXTURES[BLOCK.COOKED_MEAT] = generateToolTexture(
+      TOOL_DEFS.COOKED_MEAT.pattern,
+      TOOL_DEFS.COOKED_MEAT.color,
+    );
+
     // Generate Crafting Table Icon
     if (
       BLOCK_DEFS.CRAFTING_TABLE_TOP &&
@@ -363,13 +396,13 @@ export function initToolTextures() {
     }
 
     // Generate Ore Icons
-    if (BLOCK_DEFS.COAL_ORE) {
+    if (BLOCK_DEFS.COAL_ORE && BLOCK_DEFS.COAL_ORE.pattern && BLOCK_DEFS.COAL_ORE.colors) {
       TOOL_TEXTURES[BLOCK.COAL_ORE] = generateBlockIcon(
         BLOCK_DEFS.COAL_ORE.pattern,
         BLOCK_DEFS.COAL_ORE.colors,
       );
     }
-    if (BLOCK_DEFS.IRON_ORE) {
+    if (BLOCK_DEFS.IRON_ORE && BLOCK_DEFS.IRON_ORE.pattern && BLOCK_DEFS.IRON_ORE.colors) {
       TOOL_TEXTURES[BLOCK.IRON_ORE] = generateBlockIcon(
         BLOCK_DEFS.IRON_ORE.pattern,
         BLOCK_DEFS.IRON_ORE.colors,
@@ -377,7 +410,7 @@ export function initToolTextures() {
     }
 
     // Generate Furnace Icon
-    if (BLOCK_DEFS.FURNACE_FRONT) {
+    if (BLOCK_DEFS.FURNACE_FRONT && BLOCK_DEFS.FURNACE_FRONT.pattern && BLOCK_DEFS.FURNACE_FRONT.colors) {
       TOOL_TEXTURES[BLOCK.FURNACE] = generateBlockIcon(
         BLOCK_DEFS.FURNACE_FRONT.pattern,
         BLOCK_DEFS.FURNACE_FRONT.colors,
