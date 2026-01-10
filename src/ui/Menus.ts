@@ -1,5 +1,6 @@
 import { Game } from "../core/Game";
 import { worldDB } from "../utils/DB";
+import { modManagerUI } from "../modding";
 
 export class Menus {
   private game: Game;
@@ -17,6 +18,7 @@ export class Menus {
   // Buttons
   private btnNewGame: HTMLElement;
   private btnContinue: HTMLButtonElement;
+  private btnMods: HTMLElement;
   private btnResume: HTMLElement;
   private btnExit: HTMLElement;
   private resumeTimeout: number | null = null;
@@ -59,6 +61,7 @@ export class Menus {
     this.btnContinue = document.getElementById(
       "btn-continue",
     )! as HTMLButtonElement;
+    this.btnMods = document.getElementById("btn-mods")!;
     this.btnResume = document.getElementById("btn-resume")!;
     this.btnExit = document.getElementById("btn-exit")!;
     this.btnSettingsMain = document.getElementById("btn-settings-main")!;
@@ -90,6 +93,7 @@ export class Menus {
 
     this.btnNewGame.addEventListener("click", () => this.startGame(false));
     this.btnContinue.addEventListener("click", () => this.startGame(true));
+    this.btnMods.addEventListener("click", () => this.showModManager());
     this.btnResume.addEventListener("click", () => {
       if (this.game.renderer.getIsMobile()) {
         this.hidePauseMenu();
@@ -228,6 +232,10 @@ export class Menus {
     } else {
       this.showMainMenu();
     }
+  }
+
+  private showModManager() {
+    modManagerUI.show();
   }
 
   private async startGame(loadSave: boolean) {

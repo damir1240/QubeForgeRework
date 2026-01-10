@@ -10,6 +10,8 @@ import { PointerLockHandler } from "./input/PointerLockHandler";
 import { Game } from "./core/Game";
 import { FurnaceManager } from "./crafting/FurnaceManager";
 import "./style.css";
+import "./styles/mod-manager.css";
+import "./styles/mods.css";
 
 // Initialize Tool Textures
 initToolTextures();

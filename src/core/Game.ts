@@ -21,6 +21,7 @@ import { BLOCK } from "../constants/Blocks";
 import { TOOL_DURABILITY } from "../constants/GameConstants";
 import { createDevTools, DevTools } from "../utils/DevTools";
 import { createProfiler, PerformanceProfiler } from "../utils/PerformanceProfiler";
+import { modLoader, globalEventBus } from "../modding";
 
 /**
  * Главный класс игры, координирующий все системы
@@ -106,6 +107,24 @@ export class Game {
     // Initialize Dev Tools (only in dev mode)
     this.devTools = createDevTools();
     this.profiler = createProfiler();
+
+    // Initialize Modding System
+    this.initMods();
+  }
+
+  /**
+   * Инициализация системы модов
+   */
+  private async initMods(): Promise<void> {
+    try {
+      // Передать ссылку на игру в ModLoader
+      modLoader.setGame(this);
+      
+      // Загрузить все моды
+      await modLoader.loadAllMods();
+    } catch (error) {
+      console.error('[Game] Failed to initialize mods:', error);
+    }
   }
 
   /**
