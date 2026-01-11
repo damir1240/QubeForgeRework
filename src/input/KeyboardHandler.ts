@@ -65,7 +65,9 @@ export class KeyboardHandler {
     switch (event.code) {
       case "Slash":
         event.preventDefault();
-        this.cli.toggle(true, "/");
+        if (this.cli.isEnabled()) {
+          this.cli.toggle(true, "/");
+        }
         break;
       case "KeyT":
         if (
@@ -74,7 +76,9 @@ export class KeyboardHandler {
           inventoryMenu.style.display !== "flex"
         ) {
           event.preventDefault();
-          this.cli.toggle(true, "");
+          if (this.cli.isEnabled()) {
+            this.cli.toggle(true, "");
+          }
         }
         break;
       case "ArrowUp":

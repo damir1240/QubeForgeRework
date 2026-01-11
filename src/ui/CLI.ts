@@ -1,14 +1,19 @@
 import { Game } from "../core/Game";
 import { BLOCK_NAMES, ITEM_MAP } from "../constants/BlockNames";
+import { FeatureToggles } from "../utils/FeatureToggles";
 
 export class CLI {
   private game: Game;
   private container: HTMLElement;
   private input: HTMLInputElement;
   public isOpen: boolean = false;
+  private enabled: boolean;
 
   constructor(game: Game) {
     this.game = game;
+
+    const toggles = FeatureToggles.getInstance();
+    this.enabled = toggles.isEnabled('show_cli');
 
     this.container = document.createElement("div");
     this.container.id = "cli-container";
@@ -21,7 +26,16 @@ export class CLI {
     this.container.appendChild(this.input);
     document.body.appendChild(this.container);
 
+    if (!this.enabled) {
+      this.container.style.display = "none";
+      return;
+    }
+
     this.initListeners();
+  }
+
+  public isEnabled(): boolean {
+    return this.enabled;
   }
 
   private initListeners() {
@@ -38,6 +52,10 @@ export class CLI {
   }
 
   public toggle(open: boolean, initialChar: string = "") {
+    if (!this.enabled) {
+      return;
+    }
+
     if (open) {
       if (!this.game.gameState.getGameStarted()) return; // Don't open in menus
       this.isOpen = true;

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { FeatureToggles } from "./FeatureToggles";
 
 /**
  * Утилиты для разработки (только в dev режиме)
@@ -124,9 +125,15 @@ export class DevTools {
  * Создать dev-утилиты только в dev режиме
  */
 export function createDevTools(): DevTools | null {
-  if (import.meta.env.DEV) {
-    console.log("🛠️ Dev Tools enabled");
-    return new DevTools();
+  if (!import.meta.env.DEV) {
+    return null;
   }
-  return null;
+  
+  const toggles = FeatureToggles.getInstance();
+  if (!toggles.isEnabled('show_fps')) {
+    return null;
+  }
+  
+  console.log("🛠️ Dev Tools enabled");
+  return new DevTools();
 }

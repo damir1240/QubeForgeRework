@@ -1,6 +1,7 @@
 import { Game } from "../core/Game";
 import { worldDB } from "../utils/DB";
 import { modManagerUI } from "../modding";
+import { FeatureToggles } from "../utils/FeatureToggles";
 
 export class Menus {
   private game: Game;
@@ -74,6 +75,15 @@ export class Menus {
     this.btnContinue.disabled = true; // Default to disabled
     this.checkSaveState();
 
+    // Check feature toggle for mods button
+    const toggles = FeatureToggles.getInstance();
+    if (!toggles.isEnabled('show_mods')) {
+      this.btnMods.style.display = 'none';
+      // Skip event listener registration for mods button
+      this.initListenersWithoutMods();
+      return;
+    }
+
     this.initListeners();
   }
 
@@ -94,6 +104,55 @@ export class Menus {
     this.btnNewGame.addEventListener("click", () => this.startGame(false));
     this.btnContinue.addEventListener("click", () => this.startGame(true));
     this.btnMods.addEventListener("click", () => this.showModManager());
+    this.btnResume.addEventListener("click", () => {
+      if (this.game.renderer.getIsMobile()) {
+        this.hidePauseMenu();
+      } else {
+        // STRICT SEQUENCE:
+        // 1. Set flag to ignore potential 'unlock' noise during transition.
+        this.game.gameState.setIsResuming(true);
+        // 2. Focus body to ensure lock target is valid.
+        document.body.focus();
+        // 3. Request lock. Visual hiding happens in main.ts 'lock' event.
+        this.game.renderer.controls.lock();
+
+        // Safety timeout: reset flag if lock fails (rare but possible)
+        setTimeout(() => {
+          this.game.gameState.setIsResuming(false);
+        }, 1000);
+      }
+    });
+    this.btnSettingsMain.addEventListener("click", () =>
+      this.showSettingsMenu(this.mainMenu),
+    );
+    this.btnSettingsPause.addEventListener("click", () =>
+      this.showSettingsMenu(this.pauseMenu),
+    );
+    this.btnBackSettings.addEventListener("click", () =>
+      this.hideSettingsMenu(),
+    );
+
+    this.btnExit.addEventListener("click", async () => {
+      await this.game.world.saveWorld({
+        position: this.game.renderer.controls.object.position,
+        inventory: this.game.inventory.serialize(),
+      });
+      this.showMainMenu();
+    });
+  }
+
+  private initListenersWithoutMods() {
+    this.cbShadows.addEventListener("change", () => {
+      this.game.environment.setShadowsEnabled(this.cbShadows.checked);
+    });
+
+    this.cbClouds.addEventListener("change", () => {
+      this.game.environment.setCloudsEnabled(this.cbClouds.checked);
+    });
+
+    this.btnNewGame.addEventListener("click", () => this.startGame(false));
+    this.btnContinue.addEventListener("click", () => this.startGame(true));
+    // Skip mods button listener
     this.btnResume.addEventListener("click", () => {
       if (this.game.renderer.getIsMobile()) {
         this.hidePauseMenu();
