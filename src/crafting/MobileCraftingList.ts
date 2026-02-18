@@ -203,9 +203,7 @@ export class MobileCraftingList {
     this.inventoryUI.refresh();
     this.onUpdate();
 
-    if (this.inventoryUI.onInventoryChange) {
-      this.inventoryUI.onInventoryChange();
-    }
+    this.inventoryUI.emitInventoryChange();
   }
 
   public setVisible(visible: boolean) {

@@ -1,21 +1,20 @@
 import { GameState } from "../core/GameState";
-import { Player } from "../player/Player";
 import { Inventory } from "../inventory/Inventory";
 import { InventoryUI } from "../inventory/InventoryUI";
 import { CLI } from "../ui/CLI";
+import type { InputState } from "./InputState";
+import { eventManager } from "../core/EventManager";
+import { GameEvents } from "../core/GameEvents";
 
 /**
  * Handles keyboard input for player movement and game controls
  */
 export class KeyboardHandler {
   private gameState: GameState;
-  private player: Player;
+  private inputState: InputState;
   private inventory: Inventory;
   private inventoryUI: InventoryUI;
   private cli: CLI;
-  private onToggleInventory: (useCraftingTable: boolean) => void;
-  private onShowPauseMenu: () => void;
-  private onHotbarChange: () => void;
 
   private keyDownHandler = (e: KeyboardEvent) => this.onKeyDown(e);
   private keyUpHandler = (e: KeyboardEvent) => this.onKeyUp(e);
@@ -25,28 +24,22 @@ export class KeyboardHandler {
     if (key >= 1 && key <= 9) {
       this.inventory.setSelectedSlot(key - 1);
       this.inventoryUI.refresh();
-      this.onHotbarChange();
+      eventManager.emit(GameEvents.UI_HOTBAR_CHANGE, {});
     }
   };
 
   constructor(
     gameState: GameState,
-    player: Player,
+    inputState: InputState,
     inventory: Inventory,
     inventoryUI: InventoryUI,
     cli: CLI,
-    onToggleInventory: (useCraftingTable: boolean) => void,
-    onShowPauseMenu: () => void,
-    onHotbarChange: () => void,
   ) {
     this.gameState = gameState;
-    this.player = player;
+    this.inputState = inputState;
     this.inventory = inventory;
     this.inventoryUI = inventoryUI;
     this.cli = cli;
-    this.onToggleInventory = onToggleInventory;
-    this.onShowPauseMenu = onShowPauseMenu;
-    this.onHotbarChange = onHotbarChange;
     this.init();
   }
 
@@ -110,36 +103,38 @@ export class KeyboardHandler {
         break;
       case "ArrowUp":
       case "KeyW":
-        this.player.physics.moveForward = true;
+        this.inputState.moveForward = true;
         break;
       case "ArrowLeft":
       case "KeyA":
-        this.player.physics.moveLeft = true;
+        this.inputState.moveLeft = true;
         break;
       case "ArrowDown":
       case "KeyS":
-        this.player.physics.moveBackward = true;
+        this.inputState.moveBackward = true;
         break;
       case "ArrowRight":
       case "KeyD":
-        this.player.physics.moveRight = true;
+        this.inputState.moveRight = true;
         break;
       case "ControlLeft":
       case "ControlRight":
-        this.player.physics.isSprinting = !this.player.physics.isSprinting;
+        this.inputState.isSprinting = !this.inputState.isSprinting;
         break;
       case "Space":
-        this.player.physics.jump();
+        this.inputState.isJumping = true; // Was player.physics.jump(), now state flag
         break;
       case "KeyE":
-        if (!this.gameState.getPaused()) this.onToggleInventory(false);
+        if (!this.gameState.getPaused()) {
+          eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
+        }
         break;
       case "Escape":
         const invMenu = document.getElementById("inventory-menu")!;
         if (invMenu.style.display === "flex") {
-          this.onToggleInventory(false);
+          eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
         } else if (this.gameState.getGameStarted()) {
-          this.onShowPauseMenu();
+          eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, {});
         }
         break;
     }
@@ -149,20 +144,23 @@ export class KeyboardHandler {
     switch (event.code) {
       case "ArrowUp":
       case "KeyW":
-        this.player.physics.moveForward = false;
-        this.player.physics.isSprinting = false;
+        this.inputState.moveForward = false;
+        this.inputState.isSprinting = false;
         break;
       case "ArrowLeft":
       case "KeyA":
-        this.player.physics.moveLeft = false;
+        this.inputState.moveLeft = false;
         break;
       case "ArrowDown":
       case "KeyS":
-        this.player.physics.moveBackward = false;
+        this.inputState.moveBackward = false;
         break;
       case "ArrowRight":
       case "KeyD":
-        this.player.physics.moveRight = false;
+        this.inputState.moveRight = false;
+        break;
+      case "Space":
+        this.inputState.isJumping = false;
         break;
     }
   }

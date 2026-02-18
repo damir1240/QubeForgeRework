@@ -8,6 +8,7 @@ import {
   PLAYER_HEIGHT,
   PLAYER_EYE_HEIGHT,
 } from "../constants/GameConstants";
+import type { InputState } from "../input/InputState";
 
 export class PlayerPhysics {
   public controls: PointerLockControls;
@@ -15,10 +16,6 @@ export class PlayerPhysics {
   private velocity: THREE.Vector3;
 
   // Movement state
-  public moveForward = false;
-  public moveBackward = false;
-  public moveLeft = false;
-  public moveRight = false;
   public isOnGround = false;
 
   // Player dimensions
@@ -107,7 +104,21 @@ export class PlayerPhysics {
     return false;
   }
 
-  public update(delta: number): void {
+  // Movement state - Removed public props as they are now in InputState
+  // keeping private for internal logic if needed? No, purely derived from InputState now.
+  private get moveForward() { return false; } // Stub to avoid breaking external refs if any? 
+  // actually I should check if anything else accesses player.physics.moveForward.
+  // Game.ts used to? KeyboardHandler did.
+  // I updated KeyboardHandler.
+  // So I can remove them.
+
+  // Need to import InputState
+
+  // ... constructor ... 
+  // No changes to constructor
+
+  // ... update signature ...
+  public update(delta: number, inputState: InputState): void {
     const safeDelta = Math.min(delta, 0.05);
 
     if (this.invertedControls) {
@@ -117,9 +128,14 @@ export class PlayerPhysics {
       }
     }
 
+    // Jump logic
+    if (inputState.isJumping) {
+      this.jump();
+    }
+
     // Input Vector (Local)
-    let inputX = Number(this.moveRight) - Number(this.moveLeft);
-    let inputZ = Number(this.moveForward) - Number(this.moveBackward);
+    let inputX = Number(inputState.moveRight) - Number(inputState.moveLeft);
+    let inputZ = Number(inputState.moveForward) - Number(inputState.moveBackward);
 
     if (this.invertedControls) {
       inputX = -inputX;
@@ -144,12 +160,12 @@ export class PlayerPhysics {
 
     // Acceleration & Friction
     if (
-      this.moveForward ||
-      this.moveBackward ||
-      this.moveLeft ||
-      this.moveRight
+      inputState.moveForward ||
+      inputState.moveBackward ||
+      inputState.moveLeft ||
+      inputState.moveRight
     ) {
-      const currentSpeed = this.isSprinting ? this.sprintSpeed : this.walkSpeed;
+      const currentSpeed = inputState.isSprinting ? this.sprintSpeed : this.walkSpeed;
       this.velocity.x += moveDir.x * currentSpeed * safeDelta;
       this.velocity.z += moveDir.z * currentSpeed * safeDelta;
     }

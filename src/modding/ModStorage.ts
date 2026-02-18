@@ -3,7 +3,7 @@
 
 import type { StoredMod } from './types';
 
-const DB_NAME = 'QubeForge_Mods';
+const DB_NAME = 'QubeForgeRework_Mods';
 const DB_VERSION = 1;
 const STORE_NAME = 'mods';
 

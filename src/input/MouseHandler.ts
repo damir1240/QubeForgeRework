@@ -6,13 +6,22 @@ import { World } from "../world/World";
 import { Inventory } from "../inventory/Inventory";
 import { InventoryUI } from "../inventory/InventoryUI";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import type { InputState } from "./InputState";
+import { eventManager } from "../core/EventManager";
+import { GameEvents } from "../core/GameEvents";
 
 /**
  * Handles mouse input for attacking, placing blocks, and hotbar scrolling
  */
-export class MouseHandler {
+export class MouseHandler implements InputState {
   public isAttackPressed = false;
   public isUsePressed = false;
+  public moveForward = false;
+  public moveBackward = false;
+  public moveLeft = false;
+  public moveRight = false;
+  public isSprinting = false;
+  public isJumping = false;
 
   private gameState: GameState;
   private player: Player;
@@ -23,7 +32,6 @@ export class MouseHandler {
   private inventoryUI: InventoryUI;
   private controls: PointerLockControls;
   private isMobile: boolean;
-  private onHotbarChange: () => void;
 
   private mouseDownHandler = (e: MouseEvent) => this.onMouseDown(e);
   private mouseUpHandler = () => this.onMouseUp();
@@ -33,7 +41,7 @@ export class MouseHandler {
     else selected = (selected - 1 + 9) % 9;
     this.inventory.setSelectedSlot(selected);
     this.inventoryUI.refresh();
-    this.onHotbarChange();
+    eventManager.emit(GameEvents.UI_HOTBAR_CHANGE, {});
   };
 
   constructor(
@@ -46,7 +54,6 @@ export class MouseHandler {
     inventoryUI: InventoryUI,
     controls: PointerLockControls,
     isMobile: boolean,
-    onHotbarChange: () => void,
   ) {
     this.gameState = gameState;
     this.player = player;
@@ -57,7 +64,6 @@ export class MouseHandler {
     this.inventoryUI = inventoryUI;
     this.controls = controls;
     this.isMobile = isMobile;
-    this.onHotbarChange = onHotbarChange;
     this.init();
   }
 

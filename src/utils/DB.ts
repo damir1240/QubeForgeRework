@@ -4,7 +4,7 @@ export class DB {
   private db: IDBDatabase | null = null;
 
   constructor(
-    dbName: string = "minecraft-world-tall",
+    dbName: string = "qubeforge-rework",
     storeName: string = "chunks",
   ) {
     this.dbName = dbName;
@@ -36,13 +36,13 @@ export class DB {
     });
   }
 
-  async set(
+  async set<T>(
     key: string,
-    value: any,
+    value: T,
     store: string = this.storeName,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (!this.db) return reject("DB not initialized");
+      if (!this.db) return reject(new Error("DB not initialized"));
       const transaction = this.db.transaction([store], "readwrite");
       const objectStore = transaction.objectStore(store);
       const request = objectStore.put(value, key);
@@ -52,15 +52,15 @@ export class DB {
     });
   }
 
-  async get(key: string, store: string = this.storeName): Promise<any> {
+  async get<T>(key: string, store: string = this.storeName): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
-      if (!this.db) return reject("DB not initialized");
+      if (!this.db) return reject(new Error("DB not initialized"));
       const transaction = this.db.transaction([store], "readonly");
       const objectStore = transaction.objectStore(store);
       const request = objectStore.get(key);
 
       request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result as T | undefined);
     });
   }
 

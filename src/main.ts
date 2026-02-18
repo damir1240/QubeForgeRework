@@ -4,12 +4,12 @@ import { LoadingScreen } from "./initialization/LoadingScreen";
 import { NoiseGenerator } from "./initialization/NoiseGenerator";
 import { AutoSave } from "./ui/AutoSave";
 import { InventoryController } from "./ui/InventoryController";
-import { KeyboardHandler } from "./input/KeyboardHandler";
-import { MouseHandler } from "./input/MouseHandler";
-import { PointerLockHandler } from "./input/PointerLockHandler";
 import { Game } from "./core/Game";
 import { FurnaceManager } from "./crafting/FurnaceManager";
 import { FeatureToggles } from "./utils/FeatureToggles";
+import { InputSystem } from "./systems/InputSystem";
+import { GameContext } from "./core/GameContext";
+import { GameEvents } from "./core/GameEvents";
 import "./style.css";
 import "./styles/mod-manager.css";
 import "./styles/mods.css";
@@ -22,11 +22,24 @@ async function initializeGame() {
   // Initialize Tool Textures
   initToolTextures();
 
-// Generate CSS Noise Texture
+  // Generate CSS Noise Texture
   NoiseGenerator.generate();
 
   // Initialize all game systems
   const systems = GameInitializer.initialize();
+
+  // Create InputSystem
+  const inputSystem = new InputSystem(
+    systems.gameState,
+    systems.player,
+    systems.inventory,
+    systems.inventoryUI,
+    systems.world,
+    systems.blockBreaking,
+    systems.blockInteraction,
+    systems.controls,
+    systems.isMobile
+  );
 
   // Create Game instance
   const game = new Game(
@@ -45,7 +58,15 @@ async function initializeGame() {
     systems.craftingSystem,
     systems.craftingUI,
     systems.furnaceUI,
+    inputSystem.inputState, // Pass the InputState managed by InputSystem
   );
+
+  // Finalize InputSystem initialization with CLI
+  inputSystem.setExecutionDependencies(game.cli);
+
+  // Register InputSystem in Context
+  const context = GameContext.getInstance();
+  context.register('inputSystem', inputSystem);
 
   // Set game reference for callbacks
   systems.setGame(game);
@@ -57,7 +78,7 @@ async function initializeGame() {
     systems.world,
     systems.inventory,
     systems.inventoryUI,
-    systems.inventoryUI["dragDrop"], // Access private field
+    systems.inventoryUI.getDragDrop(),
     systems.craftingSystem,
     systems.craftingUI,
     systems.furnaceUI,
@@ -65,74 +86,30 @@ async function initializeGame() {
   );
 
   // Set interaction callbacks
-  systems.blockInteraction["onOpenCraftingTable"] = () =>
-    inventoryController.toggle(true);
-  systems.blockInteraction["onOpenFurnace"] = (x: number, y: number, z: number) =>
-    inventoryController.toggle("furnace", { x, y, z });
+  const { eventManager } = GameContext.getInstance(); // Access eventManager
+  if (eventManager) {
+    eventManager.on(GameEvents.OPEN_CRAFTING, () => inventoryController.toggle(true));
+    eventManager.on(GameEvents.OPEN_FURNACE, (data: any) => inventoryController.toggle("furnace", data));
+    eventManager.on(GameEvents.UI_TOGGLE_INVENTORY, (data: any) => {
+      const forceClose = data?.forceClose === true;
+      const invMenu = document.getElementById("inventory-menu")!;
+      const isOpen = invMenu.style.display === "flex";
+      if (forceClose && !isOpen) return;
+      inventoryController.toggle(false);
+    });
+    eventManager.on(GameEvents.UI_TOGGLE_PAUSE, (data: any) => {
+      game.menus.togglePauseMenu(data?.forceClose);
+    });
+  }
 
-  // Input Handlers
-  const keyboardHandler = new KeyboardHandler(
-    systems.gameState,
-    systems.player,
-    systems.inventory,
-    systems.inventoryUI,
-    game.cli,
-    (useCraftingTable) => inventoryController.toggle(useCraftingTable),
-    () => game.menus.showPauseMenu(),
-    () => {
-      if (systems.inventoryUI.onInventoryChange) {
-        systems.inventoryUI.onInventoryChange();
-      }
-    },
-  );
-
-  const mouseHandler = new MouseHandler(
-    systems.gameState,
-    systems.player,
-    systems.blockBreaking,
-    systems.blockInteraction,
-    systems.world,
-    systems.inventory,
-    systems.inventoryUI,
-    systems.controls,
-    systems.isMobile,
-    () => {
-      if (systems.inventoryUI.onInventoryChange) {
-        systems.inventoryUI.onInventoryChange();
-      }
-    },
-  );
-
-  // Expose mouse handler state to game
-  game.isAttackPressed = false;
-  game.isUsePressed = false;
-  Object.defineProperty(game, "isAttackPressed", {
-    get: () => mouseHandler.isAttackPressed,
-    set: (val) => {
-      mouseHandler.isAttackPressed = val;
-    },
-  });
-  Object.defineProperty(game, "isUsePressed", {
-    get: () => mouseHandler.isUsePressed,
-    set: (val) => {
-      mouseHandler.isUsePressed = val;
-    },
-  });
-
-  const pointerLockHandler = new PointerLockHandler(
-    systems.controls,
-    systems.gameState,
-    () => inventoryController.toggle(),
-    () => game.menus.hidePauseMenu(),
-    () => game.menus.showPauseMenu(),
-    () => game.cli.isOpen,
-  );
-
-  // Store handlers in game for cleanup
+  // Input Handlers are now managed by InputSystem, 
+  // but Game might expect inputHandlers property for some reason?
+  // Game.ts definitions: public inputHandlers: { keyboard?: KeyboardHandler; mouse?: MouseHandler; pointerLock?: PointerLockHandler; };
+  // We should populate it for backward compatibility if Game uses it.
   game.inputHandlers = {
-    keyboard: keyboardHandler,
-    mouse: mouseHandler,
-    pointerLock: pointerLockHandler,
+    keyboard: inputSystem.keyboardHandler,
+    mouse: inputSystem.mouseHandler,
+    pointerLock: inputSystem.pointerLockHandler,
   };
 
   // Auto-save
@@ -178,5 +155,16 @@ async function initializeGame() {
   loadingScreen.start(() => game.start());
 }
 
+// Глобальный обработчик необработанных ошибок
+window.addEventListener("error", (event) => {
+  console.error("[QubeForge] Unhandled error:", event.error);
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("[QubeForge] Unhandled promise rejection:", event.reason);
+});
+
 // Start the game
-initializeGame();
+initializeGame().catch((error) => {
+  console.error("[QubeForge] Fatal initialization error:", error);
+});

@@ -6,9 +6,11 @@ import { PointerLockControls } from "three/addons/controls/PointerLockControls.j
 import { World } from "../world/World";
 import * as THREE from "three";
 import { MathUtils } from "three";
-import { HealthBar } from "../ui/HealthBar";
+// import { HealthBar } from "../ui/HealthBar"; // Removed
+import type { IPlayer } from "./IPlayer";
+import type { InputState } from "../input/InputState";
 
-export class Player {
+export class Player implements IPlayer {
   public physics: PlayerPhysics;
   public health: PlayerHealth;
   public combat: PlayerCombat;
@@ -24,16 +26,12 @@ export class Player {
     onToolUse: (amount: number) => void,
     cursorMesh: THREE.Mesh,
     crackMesh: THREE.Mesh,
-    damageOverlay: HTMLElement,
-    healthBar: HealthBar,
     noiseTexture: THREE.DataTexture,
-    toolTextures: any,
+    toolTextures: Record<number, { texture: THREE.CanvasTexture; dataUrl: string }>,
   ) {
     this.physics = new PlayerPhysics(controls, world);
 
     this.health = new PlayerHealth(
-      damageOverlay,
-      healthBar,
       camera,
       controls,
       (pos) => this.physics.checkCollision(pos),
@@ -55,18 +53,18 @@ export class Player {
     this.hand = new PlayerHand(uiCamera, noiseTexture, toolTextures);
   }
 
-  public update(delta: number) {
-    this.physics.update(delta);
+  public update(delta: number, inputState: InputState) {
+    this.physics.update(delta, inputState);
 
     // FOV Effect
     const baseFov = 75;
     const sprintFov = 85;
     const targetFov =
-      this.physics.isSprinting &&
-      (this.physics.moveForward ||
-        this.physics.moveBackward ||
-        this.physics.moveLeft ||
-        this.physics.moveRight)
+      inputState.isSprinting &&
+        (inputState.moveForward ||
+          inputState.moveBackward ||
+          inputState.moveLeft ||
+          inputState.moveRight)
         ? sprintFov
         : baseFov;
 
@@ -80,12 +78,20 @@ export class Player {
     }
 
     const isMoving =
-      (this.physics.moveForward ||
-        this.physics.moveBackward ||
-        this.physics.moveLeft ||
-        this.physics.moveRight) &&
+      (inputState.moveForward ||
+        inputState.moveBackward ||
+        inputState.moveLeft ||
+        inputState.moveRight) &&
       this.physics.isOnGround;
 
     this.hand.update(delta, isMoving);
+  }
+
+  public getPosition(): THREE.Vector3 {
+    return this.physics.controls.object.position;
+  }
+
+  public getRotation(): THREE.Euler {
+    return this.physics.controls.object.rotation;
   }
 }

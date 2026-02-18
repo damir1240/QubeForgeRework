@@ -1,31 +1,30 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { HealthBar } from '../ui/HealthBar';
 import { globalEventBus } from '../modding';
 import { INVULNERABILITY_DURATION } from '../constants/GameConstants';
 import { logger } from '../utils/Logger';
+import { eventManager } from '../core/EventManager';
+import { GameEvents, type PlayerDamageEvent, type PlayerHealthEvent } from '../core/GameEvents';
 
 export class PlayerHealth {
   private hp: number = 20;
   private readonly maxHp: number = 20;
   private isInvulnerable: boolean = false;
-  private damageOverlay: HTMLElement;
-  private healthBar: HealthBar;
+
+  // UI dependencies removed/optional? 
+  // For now, removing them to enforce decoupling.
+
   private camera: THREE.PerspectiveCamera;
   private controls: PointerLockControls;
   private checkCollision: (position: THREE.Vector3) => boolean;
   private onRespawn?: () => void;
 
   constructor(
-    damageOverlay: HTMLElement,
-    healthBar: HealthBar,
     camera: THREE.PerspectiveCamera,
     controls: PointerLockControls,
     checkCollision: (position: THREE.Vector3) => boolean,
     onRespawn?: () => void
   ) {
-    this.damageOverlay = damageOverlay;
-    this.healthBar = healthBar;
     this.camera = camera;
     this.controls = controls;
     this.checkCollision = checkCollision;
@@ -49,9 +48,20 @@ export class PlayerHealth {
 
     this.hp -= amount;
     if (this.hp < 0) this.hp = 0;
-    this.healthBar.update(this.hp);
 
-    // Emit event for mods
+    // Emit event instead of direct UI update
+    eventManager.emit<PlayerHealthEvent>(GameEvents.PLAYER_HEALTH_CHANGED, {
+      current: this.hp,
+      max: this.maxHp
+    });
+
+    eventManager.emit<PlayerDamageEvent>(GameEvents.PLAYER_DAMAGE, {
+      amount,
+      current: this.hp,
+      max: this.maxHp
+    });
+
+    // Emit event for mods (legacy)
     globalEventBus.emit('player:damage', {
       amount,
       newHp: this.hp,
@@ -60,9 +70,8 @@ export class PlayerHealth {
 
     this.isInvulnerable = true;
 
-    // Red Flash Effect
-    this.damageOverlay.style.transition = 'none';
-    this.damageOverlay.style.opacity = '0.3';
+    // Camera Shake logic can remain here as it is "Player" logic (view), or move to CameraSystem?
+    // Keeping it here for now as it affects the camera directly.
 
     // Camera Shake
     const originalPos = this.camera.position.clone();
@@ -78,12 +87,6 @@ export class PlayerHealth {
       this.camera.position.copy(originalPos);
     }
 
-    // Restore
-    requestAnimationFrame(() => {
-      this.damageOverlay.style.transition = 'opacity 0.5s ease-out';
-      this.damageOverlay.style.opacity = '0';
-    });
-
     if (this.hp <= 0) {
       this.respawn();
     }
@@ -95,12 +98,18 @@ export class PlayerHealth {
 
   public respawn(): void {
     this.hp = this.maxHp;
-    this.healthBar.update(this.hp);
+
+    eventManager.emit(GameEvents.PLAYER_RESPAWN, {});
+    eventManager.emit<PlayerHealthEvent>(GameEvents.PLAYER_HEALTH_CHANGED, {
+      current: this.hp,
+      max: this.maxHp
+    });
+
     this.isInvulnerable = false;
 
     // Teleport to spawn
     this.controls.object.position.set(8, 40, 8);
-    
+
     if (this.onRespawn) {
       this.onRespawn();
     }
@@ -110,7 +119,11 @@ export class PlayerHealth {
 
   public setHp(hp: number): void {
     this.hp = Math.max(0, Math.min(hp, this.maxHp));
-    this.healthBar.update(this.hp);
+
+    eventManager.emit<PlayerHealthEvent>(GameEvents.PLAYER_HEALTH_CHANGED, {
+      current: this.hp,
+      max: this.maxHp
+    });
   }
 }
 

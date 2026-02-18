@@ -9,6 +9,6 @@
     </filter>
   </defs>
   <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="80" fill="url(#grad1)" stroke="white" stroke-width="2" filter="url(#shadow)">
-    QubeForge
+    QubeForge Rework
   </text>
 </svg>

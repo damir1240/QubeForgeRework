@@ -8,7 +8,7 @@ import { initVanillaRegistry } from './Registry';
 import { modStorage } from './ModStorage';
 
 export const API_VERSION = '1.0';
-export const GAME_VERSION = '1.0.0';
+export const GAME_VERSION = '0.1.0';
 
 interface InternalLoadedMod {
   manifest: ModManifest;
@@ -36,6 +36,7 @@ export class ModLoader {
 
   /**
    * Настройка глобального API window.QubeForge
+   * (имя сохранено для обратной совместимости модов)
    */
   private setupGlobalAPI(): void {
     window.QubeForge = {

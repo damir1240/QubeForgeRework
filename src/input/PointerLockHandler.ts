@@ -1,5 +1,7 @@
 import { GameState } from "../core/GameState";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
+import { eventManager } from "../core/EventManager";
+import { GameEvents } from "../core/GameEvents";
 
 /**
  * Handles pointer lock/unlock events for pause menu logic
@@ -7,9 +9,6 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 export class PointerLockHandler {
   private controls: PointerLockControls;
   private gameState: GameState;
-  private onToggleInventory: () => void;
-  private onHidePauseMenu: () => void;
-  private onShowPauseMenu: () => void;
   private isCliOpen: () => boolean;
 
   private lockHandler = () => this.onLock();
@@ -18,16 +17,10 @@ export class PointerLockHandler {
   constructor(
     controls: PointerLockControls,
     gameState: GameState,
-    onToggleInventory: () => void,
-    onHidePauseMenu: () => void,
-    onShowPauseMenu: () => void,
     isCliOpen: () => boolean,
   ) {
     this.controls = controls;
     this.gameState = gameState;
-    this.onToggleInventory = onToggleInventory;
-    this.onHidePauseMenu = onHidePauseMenu;
-    this.onShowPauseMenu = onShowPauseMenu;
     this.isCliOpen = isCliOpen;
     this.init();
   }
@@ -45,17 +38,17 @@ export class PointerLockHandler {
   private onLock(): void {
     // If we were resuming (flag set by Resume button), finalize the resume
     if (this.gameState.getIsResuming()) {
-      this.onHidePauseMenu();
+      eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, { forceClose: true });
       this.gameState.setIsResuming(false);
     }
     // Or if we just somehow got locked while paused (edge case), ensure we unpause
     else if (this.gameState.getPaused() && this.gameState.getGameStarted()) {
-      this.onHidePauseMenu();
+      eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, { forceClose: true });
     }
 
     const inventoryMenu = document.getElementById("inventory-menu")!;
     if (inventoryMenu.style.display === "flex") {
-      this.onToggleInventory();
+      eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { forceClose: true });
     }
   }
 
@@ -71,7 +64,7 @@ export class PointerLockHandler {
       this.gameState.getGameStarted() &&
       !this.isCliOpen()
     ) {
-      this.onShowPauseMenu();
+      eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, {});
     }
   }
 }

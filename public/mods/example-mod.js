@@ -1,5 +1,5 @@
 // example-mod.js
-// Пример мода для QubeForge
+// Пример мода для QubeForge Rework
 
 QubeForge.registerMod('example-mod', {
   name: 'Example Mod',
@@ -35,14 +35,14 @@ QubeForge.registerMod('example-mod', {
       const player = api.getPlayer();
       const pos = player.getPosition();
       if (pos) {
-        api.ui.updateHUDElement('coords', { 
+        api.ui.updateHUDElement('coords', {
           html: `<div>X: ${pos.x.toFixed(0)} Y: ${pos.y.toFixed(0)} Z: ${pos.z.toFixed(0)}</div>`
         });
       }
     }, 500);
 
     // === События с визуальной обратной связью ===
-    
+
     // Разрушение блока
     api.on('world:blockBreak', (event) => {
       blocksDestroyed++;
@@ -61,10 +61,10 @@ QubeForge.registerMod('example-mod', {
     api.on('player:damage', (event) => {
       const hp = event.data.newHp;
       const maxHp = event.data.maxHp;
-      
+
       let color = '#4f4'; // зелёный
       let status = '❤ Здоровье в норме';
-      
+
       if (hp <= 5) {
         color = '#f44';
         status = '💀 КРИТИЧЕСКОЕ ЗДОРОВЬЕ!';
@@ -73,7 +73,7 @@ QubeForge.registerMod('example-mod', {
         color = '#ff4';
         status = '⚠ Здоровье низкое';
       }
-      
+
       api.ui.updateHUDElement('health-status', {
         html: `<div style="color: ${color};">${status} (${hp}/${maxHp})</div>`
       });
@@ -85,6 +85,6 @@ QubeForge.registerMod('example-mod', {
     });
   },
 
-  onEnable() {},
-  onDisable() {},
+  onEnable() { },
+  onDisable() { },
 });

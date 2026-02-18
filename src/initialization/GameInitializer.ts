@@ -23,7 +23,15 @@ import { Game } from "../core/Game";
 import { BLOCK } from "../constants/Blocks";
 import { BLOCK_NAMES } from "../constants/BlockNames";
 import { TOOL_TEXTURES } from "../constants/ToolTextures";
+import { isItemEntity } from "../utils/ItemUtils";
 import { initDebugControls } from "../utils/DebugUtils";
+import { eventManager } from "../core/EventManager";
+import { GameEvents } from "../core/GameEvents";
+import type { BlockBrokenEvent, BlockPlacedEvent } from "../core/GameEvents";
+import { EntitySystem } from "../systems/EntitySystem";
+import { InventorySystem } from "../systems/InventorySystem";
+import { UISystem } from "../systems/UISystem";
+import { GameContext } from "../core/GameContext";
 
 /**
  * Initializes all game systems and returns references
@@ -72,79 +80,11 @@ export class GameInitializer {
       camera,
       controls,
       () => inventory.getSelectedSlotItem().id,
-      (x, y, z, id) => {
-        // Reduce tool durability
-        if (game) game.handleToolUse(1);
-
-        // Handle furnace drops
-        if (id === BLOCK.FURNACE) {
-          const drops = FurnaceManager.getInstance().removeFurnace(x, y, z);
-          drops.forEach((d) => {
-            let toolTexture = null;
-            if (
-              TOOL_TEXTURES[d.id] &&
-              (d.id >= 20 ||
-                d.id === 8 ||
-                d.id === 12 ||
-                d.id === 13 ||
-                d.id === 14)
-            ) {
-              toolTexture = TOOL_TEXTURES[d.id].texture;
-            }
-            entities.push(
-              new ItemEntity(
-                world,
-                scene,
-                x,
-                y,
-                z,
-                d.id,
-                world.noiseTexture,
-                d.id === 14 ? null : toolTexture,
-                d.count,
-              ),
-            );
-          });
-        }
-
-        // Handle regular block drops
-        if (id !== 0) {
-          const toolId = inventory.getSelectedSlotItem().id;
-          const { shouldDrop, dropId } = BlockDropHandler.getDropInfo(id, toolId);
-
-          if (shouldDrop) {
-            let toolTexture = null;
-            if (
-              TOOL_TEXTURES[dropId] &&
-              (dropId >= 20 ||
-                dropId === 8 ||
-                dropId === 12 ||
-                dropId === 13 ||
-                dropId === 14)
-            ) {
-              toolTexture = TOOL_TEXTURES[dropId].texture;
-            }
-            entities.push(
-              new ItemEntity(
-                world,
-                scene,
-                x,
-                y,
-                z,
-                dropId,
-                world.noiseTexture,
-                dropId === 14 ? null : toolTexture,
-              ),
-            );
-          }
-        }
-
-        world.setBlock(x, y, z, 0); // Set to AIR
-      },
       cursorMesh,
     );
     const crackMesh = blockBreaking.getCrackMesh();
 
+    // Player
     // Player
     const player = new Player(
       controls,
@@ -158,14 +98,22 @@ export class GameInitializer {
       },
       cursorMesh,
       crackMesh,
-      damageOverlay,
-      healthBar,
       world.noiseTexture,
       TOOL_TEXTURES,
     );
 
     // Mob Manager
     const mobManager = new MobManager(world, scene, entities);
+
+    // Systems
+    const entitySystem = new EntitySystem(entities, player);
+    const inventorySystem = new InventorySystem(inventory, inventoryUI);
+    const uiSystem = new UISystem(healthBar, damageOverlay);
+
+    const context = GameContext.getInstance();
+    context.register('entitySystem', entitySystem);
+    context.register('inventorySystem', inventorySystem);
+    context.register('uiSystem', uiSystem);
 
     // UI Scene Lighting
     const uiScene = gameRenderer.uiScene;
@@ -194,71 +142,144 @@ export class GameInitializer {
       scene,
       controls,
       () => inventory.getSelectedSlotItem(),
-      (x, y, z, id) => {
-        // Handle furnace placement with rotation
-        if (id === BLOCK.FURNACE) {
-          const rot = controls.object.rotation.y;
-          let angle = rot % (Math.PI * 2);
-          if (angle < 0) angle += Math.PI * 2;
-
-          const segment = Math.floor((angle + Math.PI / 4) / (Math.PI / 2)) % 4;
-          let blockRot = 0;
-
-          if (segment === 0) blockRot = 2;
-          else if (segment === 1) blockRot = 1;
-          else if (segment === 2) blockRot = 0;
-          else if (segment === 3) blockRot = 3;
-
-          console.log(
-            `Placing Furnace: PlayerRot=${rot.toFixed(2)} Segment=${segment} BlockRot=${blockRot}`,
-          );
-
-          furnaceManager.createFurnace(x, y, z, blockRot);
-        }
-
-        world.setBlock(x, y, z, id);
-
-        // Consume item from inventory
-        const index = inventory.getSelectedSlot();
-        const slot = inventory.getSlot(index);
-        slot.count--;
-        if (slot.count <= 0) {
-          slot.id = 0;
-          slot.count = 0;
-        }
-        inventoryUI.refresh();
-        if (inventoryUI.onInventoryChange) inventoryUI.onInventoryChange();
-        return true;
-      },
-      undefined, // onOpenCraftingTable - set later
-      undefined, // onOpenFurnace - set later
       cursorMesh,
       crackMesh,
       () => mobManager.mobs,
-      () => {
-        // onConsumeItem - Healing logic
-        const slot = inventory.getSelectedSlotItem();
-
-        if (slot.id === BLOCK.COOKED_MEAT) {
-          player.health.setHp(player.health.getHp() + 4);
-        } else if (slot.id === BLOCK.RAW_MEAT) {
-          player.health.setHp(player.health.getHp() + 1);
-        }
-
-        if (slot.count > 0) {
-          slot.count--;
-          if (slot.count === 0) slot.id = 0;
-          inventoryUI.refresh();
-          if (inventoryUI.onInventoryChange) inventoryUI.onInventoryChange();
-        }
-      },
     );
 
     // Game instance (will be set after initialization)
     let game: Game;
 
+    // --- EVENT WIRING ---
+    // Move legacy callback logic to Event Listeners
+
+    // 1. Block Broken
+    eventManager.on<BlockBrokenEvent>(GameEvents.BLOCK_BROKEN, (event) => {
+      const { x, y, z, blockId, toolId } = event;
+
+      // Tool Durability
+      if (game) game.handleToolUse(1);
+
+      // Furnace Drops
+      if (blockId === BLOCK.FURNACE) {
+        const drops = FurnaceManager.getInstance().removeFurnace(x, y, z);
+        drops.forEach((d) => {
+          const toolTexture = (TOOL_TEXTURES[d.id] && isItemEntity(d.id))
+            ? TOOL_TEXTURES[d.id].texture
+            : null;
+          entities.push(
+            new ItemEntity(
+              world,
+              scene,
+              x,
+              y,
+              z,
+              d.id,
+              world.noiseTexture,
+              d.id === BLOCK.FURNACE ? null : toolTexture,
+              d.count,
+            ),
+          );
+        });
+      }
+
+      // Regular Drops
+      if (blockId !== 0) {
+        // We need toolId here. BlockBreaking events must provide it or we look it up.
+        // Modified BlockBreaking to emit toolId.
+        const tid = toolId ?? inventory.getSelectedSlotItem().id;
+
+        const { shouldDrop, dropId } = BlockDropHandler.getDropInfo(blockId, tid);
+
+        if (shouldDrop) {
+          const toolTexture = (TOOL_TEXTURES[dropId] && isItemEntity(dropId))
+            ? TOOL_TEXTURES[dropId].texture
+            : null;
+          entities.push(
+            new ItemEntity(
+              world,
+              scene,
+              x,
+              y,
+              z,
+              dropId,
+              world.noiseTexture,
+              dropId === BLOCK.FURNACE ? null : toolTexture,
+            ),
+          );
+        }
+      }
+
+      // Set AIR
+      world.setBlock(x, y, z, 0);
+    });
+
+    // 2. Block Placed
+    eventManager.on<BlockPlacedEvent>(GameEvents.BLOCK_PLACED, (event) => {
+      const { x, y, z, blockId } = event;
+
+      // Furnace Logic
+      if (blockId === BLOCK.FURNACE) {
+        const rot = controls.object.rotation.y;
+        let angle = rot % (Math.PI * 2);
+        if (angle < 0) angle += Math.PI * 2;
+
+        const segment = Math.floor((angle + Math.PI / 4) / (Math.PI / 2)) % 4;
+        let blockRot = 0;
+
+        if (segment === 0) blockRot = 2;
+        else if (segment === 1) blockRot = 1;
+        else if (segment === 2) blockRot = 0;
+        else if (segment === 3) blockRot = 3;
+
+        furnaceManager.createFurnace(x, y, z, blockRot);
+      }
+
+      // Set Block
+      world.setBlock(x, y, z, blockId);
+
+      // Consume Item
+      const index = inventory.getSelectedSlot();
+      const slot = inventory.getSlot(index);
+      slot.count--;
+      if (slot.count <= 0) {
+        slot.id = 0;
+        slot.count = 0;
+      }
+      inventoryUI.refresh();
+      inventoryUI.emitInventoryChange();
+    });
+
+    // 3. Item Consumed (Food, etc)
+    eventManager.on<{ itemId: number }>(GameEvents.ITEM_CONSUMED, (event) => {
+      const { itemId } = event;
+
+      // Healing
+      if (itemId === BLOCK.COOKED_MEAT) {
+        player.health.setHp(player.health.getHp() + 4);
+      } else if (itemId === BLOCK.RAW_MEAT) {
+        player.health.setHp(player.health.getHp() + 1);
+      }
+
+      // Consume logic
+      const slot = inventory.getSelectedSlotItem();
+      if (slot.count > 0) {
+        slot.count--;
+        if (slot.count === 0) slot.id = 0;
+        inventoryUI.refresh();
+        inventoryUI.emitInventoryChange();
+      }
+    });
+
+    // 4. UI Events
+    eventManager.on(GameEvents.OPEN_CRAFTING, () => {
+      // Placeholder for opening crafting. 
+      // Logic needs to be handled by UI system or MainMenu
+    });
+    // --- END EVENT WIRING ---
+
     // Inventory change callback
-    inventoryUI.onInventoryChange = () => {
+    inventoryUI.addInventoryChangeListener(() => {
       const slot = inventory.getSelectedSlotItem();
       player.hand.updateItem(slot.id);
       if (slot.id !== 0) {
@@ -274,7 +295,7 @@ export class GameInitializer {
           craftingUI.updateVisuals();
         }
       }
-    };
+    });
 
     return {
       gameRenderer,

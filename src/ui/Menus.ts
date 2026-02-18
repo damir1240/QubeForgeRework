@@ -12,7 +12,7 @@ export class Menus {
   private inventoryMenu: HTMLElement;
   private uiContainer: HTMLElement;
   private mobileUi: HTMLElement | null;
-  private bgVideo: HTMLVideoElement;
+  private bgImage: HTMLImageElement;
   private menuMusic: HTMLAudioElement;
   private crosshair: HTMLElement;
 
@@ -40,7 +40,7 @@ export class Menus {
     this.inventoryMenu = document.getElementById("inventory-menu")!;
     this.uiContainer = document.getElementById("ui-container")!;
     this.mobileUi = document.getElementById("mobile-ui");
-    this.bgVideo = document.getElementById("bg-video") as HTMLVideoElement;
+    this.bgImage = document.getElementById("bg-image") as HTMLImageElement;
     this.crosshair = document.getElementById("crosshair")!;
 
     this.menuMusic = new Audio("/menu_music.mp3");
@@ -52,7 +52,7 @@ export class Menus {
       "click",
       () => {
         if (this.mainMenu.style.display === "flex" && this.menuMusic.paused) {
-          this.menuMusic.play().catch(() => {});
+          this.menuMusic.play().catch(() => { });
         }
       },
       { once: true },
@@ -137,10 +137,10 @@ export class Menus {
         position: this.game.renderer.controls.object.position,
         inventory: this.game.inventory.serialize(),
       });
-      
+
       // Cleanup resources
       this.game.stop();
-      
+
       this.showMainMenu();
     });
   }
@@ -190,10 +190,10 @@ export class Menus {
         position: this.game.renderer.controls.object.position,
         inventory: this.game.inventory.serialize(),
       });
-      
+
       // Cleanup resources
       this.game.stop();
-      
+
       this.showMainMenu();
     });
   }
@@ -208,10 +208,10 @@ export class Menus {
     this.settingsMenu.style.display = "none";
     this.inventoryMenu.style.display = "none";
     this.uiContainer.style.display = "none";
-    this.bgVideo.style.display = "block"; // Show video
+    this.bgImage.style.display = "block"; // Show image
     this.crosshair.style.display = "none";
 
-    this.menuMusic.play().catch(() => {});
+    this.menuMusic.play().catch(() => { });
 
     if (this.mobileUi) this.mobileUi.style.display = "none";
 
@@ -270,11 +270,16 @@ export class Menus {
     this.game.resetTime();
   }
 
-  public togglePauseMenu() {
+  public togglePauseMenu(forceClose?: boolean) {
     if (!this.game.gameState.getGameStarted()) return;
 
     if (this.settingsMenu.style.display === "flex") {
       this.hideSettingsMenu();
+      return;
+    }
+
+    if (forceClose) {
+      this.hidePauseMenu();
       return;
     }
 
@@ -362,14 +367,14 @@ export class Menus {
       this.pauseMenu.style.display = "none";
       this.settingsMenu.style.display = "none";
       this.uiContainer.style.display = "flex";
-      this.bgVideo.style.display = "none"; // Hide video
+      this.bgImage.style.display = "none"; // Hide image
       this.menuMusic.pause();
       this.menuMusic.currentTime = 0;
       this.crosshair.style.display = "block";
 
       if (this.mobileUi && this.game.renderer.getIsMobile()) {
         this.mobileUi.style.display = "block";
-        document.documentElement.requestFullscreen().catch(() => {});
+        document.documentElement.requestFullscreen().catch(() => { });
       }
     } catch (e) {
       console.error("Failed to start game:", e);

@@ -1,4 +1,3 @@
-import * as THREE from "three";
 import { Game } from "../core/Game";
 
 export class MobileControls {
@@ -168,7 +167,7 @@ export class MobileControls {
       this.lastAttackX = touch.clientX;
       this.lastAttackY = touch.clientY;
 
-      this.game.isAttackPressed = true;
+      this.game.inputState.isAttackPressed = true;
       this.game.player.hand.punch();
       this.game.player.combat.performAttack();
       this.game.blockBreaking.start(this.game.world);
@@ -217,7 +216,7 @@ export class MobileControls {
       }
 
       if (touchFound) {
-        this.game.isAttackPressed = false;
+        this.game.inputState.isAttackPressed = false;
         this.game.player.hand.stopPunch();
         this.game.blockBreaking.stop();
         this.attackTouchId = null;
@@ -237,7 +236,7 @@ export class MobileControls {
       const touch = e.changedTouches[0];
       this.placeTouchId = touch.identifier;
 
-      this.game.isUsePressed = true;
+      this.game.inputState.isUsePressed = true;
       // Interact immediately (for placing blocks / opening inventories)
       this.game.blockInteraction.interact(this.game.world);
     });
@@ -255,7 +254,7 @@ export class MobileControls {
       }
 
       if (touchFound) {
-        this.game.isUsePressed = false;
+        this.game.inputState.isUsePressed = false;
         this.placeTouchId = null;
       }
     };

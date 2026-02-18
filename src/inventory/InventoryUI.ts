@@ -4,6 +4,7 @@ import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { getBlockColor } from "../utils/BlockColors";
 import { BLOCK_NAMES } from "../constants/BlockNames";
 import { BLOCK } from "../constants/Blocks";
+import { isTool } from "../utils/ItemUtils";
 
 export class InventoryUI {
   private inventory: Inventory;
@@ -15,7 +16,19 @@ export class InventoryUI {
 
   private touchStartSlotIndex: number | null = null;
 
-  public onInventoryChange: (() => void) | null = null;
+  private inventoryChangeListeners: Array<() => void> = [];
+
+  /** Добавить слушатель изменения инвентаря */
+  public addInventoryChangeListener(listener: () => void): void {
+    this.inventoryChangeListeners.push(listener);
+  }
+
+  /** Уведомить всех слушателей об изменении инвентаря */
+  public emitInventoryChange(): void {
+    for (const listener of this.inventoryChangeListeners) {
+      listener();
+    }
+  }
 
   constructor(inventory: Inventory, dragDrop: DragDrop, _isMobile: boolean) {
     this.inventory = inventory;
@@ -34,6 +47,10 @@ export class InventoryUI {
 
     this.init();
     this.initGlobalListeners();
+  }
+
+  public getDragDrop(): DragDrop {
+    return this.dragDrop;
   }
 
   private init() {
@@ -92,7 +109,7 @@ export class InventoryUI {
   private handleMouseEnter(e: Event) {
     const index = this.getSlotIndex(e.target);
     if (index === null) return;
-    
+
     const slot = this.inventory.getSlot(index);
     if (this.inventoryMenu.style.display !== "none" && slot.id !== 0) {
       this.tooltip.innerText = BLOCK_NAMES[slot.id] || "Block";
@@ -142,7 +159,7 @@ export class InventoryUI {
     } else if (isHotbar) {
       this.inventory.setSelectedSlot(index);
       this.refresh();
-      if (this.onInventoryChange) this.onInventoryChange();
+      this.emitInventoryChange();
     }
   }
 
@@ -301,16 +318,16 @@ export class InventoryUI {
         countEl.innerText = slot.count.toString();
 
         if (slot.durability !== undefined && slot.maxDurability !== undefined) {
-            durabilityEl.style.display = "block";
-            const percent = slot.durability / slot.maxDurability;
-            durabilityEl.style.width = `${percent * 100}%`;
-            
-            // Color based on health
-            if (percent > 0.5) durabilityEl.style.backgroundColor = "#00ff00"; // Green
-            else if (percent > 0.2) durabilityEl.style.backgroundColor = "#ffff00"; // Yellow
-            else durabilityEl.style.backgroundColor = "#ff0000"; // Red
+          durabilityEl.style.display = "block";
+          const percent = slot.durability / slot.maxDurability;
+          durabilityEl.style.width = `${percent * 100}%`;
+
+          // Color based on health
+          if (percent > 0.5) durabilityEl.style.backgroundColor = "#00ff00"; // Green
+          else if (percent > 0.2) durabilityEl.style.backgroundColor = "#ffff00"; // Yellow
+          else durabilityEl.style.backgroundColor = "#ff0000"; // Red
         } else {
-            durabilityEl.style.display = "none";
+          durabilityEl.style.display = "none";
         }
 
       } else {
@@ -356,8 +373,7 @@ export class InventoryUI {
           draggedItem = null;
         }
       } else if (slot.id === draggedItem.id) {
-        const isTool = slot.id >= 20;
-        const maxStack = isTool ? 1 : 64;
+        const maxStack = isTool(slot.id) ? 1 : 64;
 
         if (slot.count >= maxStack) {
           // Stack full (or tool), Swap
@@ -394,6 +410,6 @@ export class InventoryUI {
     this.dragDrop.setDraggedItem(draggedItem);
 
     this.refresh();
-    if (this.onInventoryChange) this.onInventoryChange();
+    this.emitInventoryChange();
   }
 }

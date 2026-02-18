@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { PerspectiveCamera } from "three";
 import { Scene } from "three";
+import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
 import { Mob } from "../mobs/Mob";
@@ -9,7 +10,9 @@ import {
   PLAYER_HEIGHT,
   PLAYER_EYE_HEIGHT,
 } from "../constants/GameConstants";
-import { globalEventBus } from "../modding";
+import { isTool } from "../utils/ItemUtils";
+import { eventManager } from "../core/EventManager";
+import { GameEvents } from "../core/GameEvents";
 
 export class BlockInteraction {
   private raycaster: THREE.Raycaster;
@@ -27,52 +30,30 @@ export class BlockInteraction {
 
   private getSelectedSlotItem: () => { id: number; count: number };
   private getMobs?: () => Mob[];
-  private onPlaceBlock?: (
-    x: number,
-    y: number,
-    z: number,
-    blockId: number,
-  ) => boolean;
-  private onOpenCraftingTable?: () => void;
-  private onOpenFurnace?: (x: number, y: number, z: number) => void;
-  private onConsumeItem?: () => void;
 
   constructor(
     camera: PerspectiveCamera,
     scene: Scene,
-    controls: any,
+    controls: PointerLockControls,
     getSelectedSlotItem: () => { id: number; count: number },
-    onPlaceBlock?: (
-      x: number,
-      y: number,
-      z: number,
-      blockId: number,
-    ) => boolean,
-    onOpenCraftingTable?: () => void,
-    onOpenFurnace?: (x: number, y: number, z: number) => void,
     cursorMesh?: THREE.Mesh,
     crackMesh?: THREE.Mesh,
     getMobs?: () => Mob[],
-    onConsumeItem?: () => void,
   ) {
     this.camera = camera;
     this.scene = scene;
     this.controls = controls;
     this.getSelectedSlotItem = getSelectedSlotItem;
-    this.onPlaceBlock = onPlaceBlock;
-    this.onOpenCraftingTable = onOpenCraftingTable;
-    this.onOpenFurnace = onOpenFurnace;
     this.cursorMesh = cursorMesh;
     this.crackMesh = crackMesh;
     this.getMobs = getMobs;
-    this.onConsumeItem = onConsumeItem;
     this.raycaster = new THREE.Raycaster();
   }
 
   public update(delta: number, isUsePressed: boolean) {
     const slot = this.getSelectedSlotItem();
     const isFood =
-      slot.id === BLOCK.COOKED_MEAT || slot.id === BLOCK.RAW_MEAT; // Can eat raw meat too? Sure.
+      slot.id === BLOCK.COOKED_MEAT || slot.id === BLOCK.RAW_MEAT;
 
     if (isUsePressed && isFood) {
       if (!this.isEating) {
@@ -98,41 +79,8 @@ export class BlockInteraction {
     return this.isEating;
   }
 
-  private consumeFood(_id: number) {
-    if (this.onConsumeItem) {
-        // We need to know how much HP to restore
-        // For now, let's just trigger the generic consume callback which removes item
-        // But we also need to heal player.
-        // BlockInteraction doesn't have reference to PlayerHealth directly.
-        // But onConsumeItem is a callback.
-        // Let's modify onConsumeItem to accept amount of healing?
-        // Or just let Game handle it via checking active item?
-        // Actually, onConsumeItem in Game.ts currently just decrements inventory.
-        
-        // Let's assume onConsumeItem handles inventory decrement.
-        // We need another callback or pass data?
-        // Let's use onConsumeItem and let Game handle the effect based on item ID.
-        // Wait, BlockInteraction doesn't know about healing logic.
-        // Let's just call onConsumeItem, and Game.ts will check what was consumed.
-        // But onConsumeItem is void.
-        
-        // Let's refactor onConsumeItem to take an ID, or add onEat callback?
-        // Simpler: Game.ts passes a callback that knows what to do.
-        // But currently onConsumeItem is generic.
-        
-        // Let's just call onConsumeItem() and I will update Game.ts to handle healing there?
-        // No, Game.ts passes `() => this.inventory.consumeCurrentItem()` usually.
-        // I need to heal BEFORE consuming or ALONG with consuming.
-        
-        // I will add a new callback `onEat` to BlockInteraction constructor?
-        // Or just emit an event?
-        // Let's reuse onConsumeItem but I'll need to update Game.ts to handle healing.
-        // Actually, let's just add `onHeal` callback to BlockInteraction.
-        
-        // Wait, I can't easily change constructor signature everywhere without reading Game.ts again.
-        // I already read Game.ts. I can change it.
-    }
-    this.onConsumeItem?.();
+  private consumeFood(itemId: number) {
+    eventManager.emit(GameEvents.ITEM_CONSUMED, { itemId });
   }
 
   public interact(world: World): void {
@@ -157,23 +105,17 @@ export class BlockInteraction {
       if (topY > 0) {
         const targetY = topY + 3.0; // Drop from above to prevent sticking
 
-        // Check if target is not too high/low compared to current?
-        // Not strictly required by prompt, but good practice.
-        // Prompt says "random place in radius 30".
-
         playerPos.set(tx + 0.5, targetY, tz + 0.5);
 
-        // Reset velocity to prevent fall damage or momentum
+        // Reset velocity 
         if ((this.controls as any).velocity)
           (this.controls as any).velocity.set(0, 0, 0);
 
         // Consume Item
-        if (this.onConsumeItem) this.onConsumeItem();
+        eventManager.emit(GameEvents.ITEM_CONSUMED, { itemId: slot.id });
 
         return; // Stop interaction
       }
-      // If no valid ground found (void), do nothing (waste use? or prevent use?)
-      // Let's prevent use if invalid target.
     }
 
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
@@ -198,14 +140,10 @@ export class BlockInteraction {
 
       const targetId = world.getBlock(x, y, z);
       if (targetId === BLOCK.CRAFTING_TABLE) {
-        if (this.onOpenCraftingTable) {
-          this.onOpenCraftingTable();
-        }
+        eventManager.emit(GameEvents.OPEN_CRAFTING, {});
         return;
       } else if (targetId === BLOCK.FURNACE) {
-        if (this.onOpenFurnace) {
-          this.onOpenFurnace(x, y, z);
-        }
+        eventManager.emit(GameEvents.OPEN_FURNACE, { x, y, z });
         return;
       }
 
@@ -213,7 +151,7 @@ export class BlockInteraction {
       const slot = this.getSelectedSlotItem();
       if (slot.id !== 0 && slot.count > 0) {
         // Prevent placing non-blocks (e.g. Stick, Tools)
-        if (slot.id === BLOCK.STICK || slot.id >= 20) return;
+        if (slot.id === BLOCK.STICK || isTool(slot.id)) return;
 
         if (hit.face) {
           const placePos = hit.point
@@ -279,16 +217,13 @@ export class BlockInteraction {
             if (mobCollision) return;
           }
 
-          if (this.onPlaceBlock) {
-            const placed = this.onPlaceBlock(px, py, pz, slot.id);
-            if (placed) {
-              // Emit event for mods
-              globalEventBus.emit('world:blockPlace', {
-                x: px, y: py, z: pz,
-                blockId: slot.id,
-              });
-            }
-          }
+          // Emit event for placement (Game/Inventory will handle actual logic)
+          eventManager.emit(GameEvents.BLOCK_PLACED, {
+            x: px,
+            y: py,
+            z: pz,
+            blockId: slot.id,
+          });
         }
       }
     }

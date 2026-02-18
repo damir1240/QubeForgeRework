@@ -4,7 +4,7 @@
 export class LoadingScreen {
   private loadingScreen: HTMLElement;
   private loadingBarInner: HTMLElement;
-  private bgVideo: HTMLVideoElement;
+  private bgImage: HTMLImageElement;
   private loadProgress = 0;
   private startTime: number;
   private readonly MIN_LOAD_TIME = 2000; // Minimum visibility time in ms
@@ -12,7 +12,7 @@ export class LoadingScreen {
   constructor() {
     this.loadingScreen = document.getElementById("loading-screen")!;
     this.loadingBarInner = document.getElementById("loading-bar-inner")!;
-    this.bgVideo = document.getElementById("bg-video") as HTMLVideoElement;
+    this.bgImage = document.getElementById("bg-image") as HTMLImageElement;
     this.startTime = performance.now();
   }
 
@@ -23,26 +23,24 @@ export class LoadingScreen {
     this.updateLoading(onComplete);
   }
 
-  private checkVideoReady(): boolean {
-    return this.bgVideo.readyState >= 3; // HAVE_FUTURE_DATA or better
+  private checkImageReady(): boolean {
+    return this.bgImage.complete && this.bgImage.naturalHeight !== 0;
   }
 
   private updateLoading(onComplete: () => void): void {
     const elapsed = performance.now() - this.startTime;
     const timeProgress = Math.min((elapsed / this.MIN_LOAD_TIME) * 100, 100);
 
-    // Track video loading progress
-    let videoProgress = 0;
-    if (this.bgVideo.buffered.length > 0) {
-      videoProgress = 100; // Assume ready if buffered
-    } else if (this.checkVideoReady()) {
-      videoProgress = 100;
+    // Track image loading progress
+    let imageProgress = 0;
+    if (this.checkImageReady()) {
+      imageProgress = 100;
     } else {
-      videoProgress = 50; // Fake trickle if video is taking time
+      imageProgress = 50; // Fake trickle if image is taking time
     }
 
-    // Weighted progress: 60% time (to show logo), 40% video
-    const totalProgress = timeProgress * 0.6 + videoProgress * 0.4;
+    // Weighted progress: 60% time (to show logo), 40% asset loading
+    const totalProgress = timeProgress * 0.6 + imageProgress * 0.4;
 
     this.loadProgress = Math.max(this.loadProgress, totalProgress); // Never go back
     this.loadingBarInner.style.width = `${this.loadProgress}%`;

@@ -1,5 +1,7 @@
 // Класс для управления данными инвентаря
 
+import { isTool } from "../utils/ItemUtils";
+
 export type InventorySlot = {
   id: number;
   count: number;
@@ -48,12 +50,10 @@ export class Inventory {
 
   public addItem(id: number, count: number): number {
     let remaining = count;
-    // Tools are 20-39. Food (40+) is stackable.
-    const isTool = id >= 20 && id < 40;
-    const maxStack = isTool ? 1 : 64;
+    const maxStack = isTool(id) ? 1 : 64;
 
     // 1. Try to stack with existing items (ONLY if not a tool)
-    if (!isTool) {
+    if (!isTool(id)) {
       for (let i = 0; i < this.SLOT_COUNT; i++) {
         if (this.slots[i].id === id && this.slots[i].count < maxStack) {
           const space = maxStack - this.slots[i].count;
@@ -71,7 +71,7 @@ export class Inventory {
         const add = Math.min(remaining, maxStack);
         this.slots[i].id = id;
         this.slots[i].count = add;
-        
+
         // Reset durability for new items if not specified
         delete this.slots[i].durability;
         delete this.slots[i].maxDurability;

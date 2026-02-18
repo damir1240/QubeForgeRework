@@ -13,12 +13,13 @@ import { InventoryUI } from "../inventory/InventoryUI";
 import { CraftingSystem } from "../crafting/CraftingSystem";
 import { CraftingUI } from "../crafting/CraftingUI";
 import { FurnaceUI } from "../crafting/FurnaceUI";
+import type { InputState } from "../input/InputState";
 import { FurnaceManager } from "../crafting/FurnaceManager";
 import { MobileControls } from "../mobile/MobileControls";
 import { CLI } from "../ui/CLI";
 import { Menus } from "../ui/Menus";
-import { BLOCK } from "../constants/Blocks";
-import { TOOL_DURABILITY, PICKUP_DISTANCE, ENTITY_VISIBILITY_DISTANCE } from "../constants/GameConstants";
+import { isTool, getToolDurability } from "../utils/ItemUtils";
+// import { ENTITY_VISIBILITY_DISTANCE } from "../constants/GameConstants"; // Moved to EntitySystem
 import { createDevTools, DevTools } from "../utils/DevTools";
 import { createProfiler, PerformanceProfiler } from "../utils/PerformanceProfiler";
 import { modLoader } from "../modding";
@@ -27,6 +28,7 @@ import { KeyboardHandler } from "../input/KeyboardHandler";
 import { MouseHandler } from "../input/MouseHandler";
 import { PointerLockHandler } from "../input/PointerLockHandler";
 import { logger } from "../utils/Logger";
+import { GameContext } from "./GameContext";
 
 
 
@@ -55,13 +57,12 @@ export class Game {
   public devTools: DevTools | null = null;
   public profiler: PerformanceProfiler | null = null;
 
-  public isAttackPressed: boolean = false;
-  public isUsePressed: boolean = false;
+  public inputState: InputState;
   public autoSave?: AutoSave;
   public inputHandlers?: {
-    keyboard: KeyboardHandler;
-    mouse: MouseHandler;
-    pointerLock: PointerLockHandler;
+    keyboard?: KeyboardHandler;
+    mouse?: MouseHandler;
+    pointerLock?: PointerLockHandler;
   };
 
   private prevTime: number = performance.now();
@@ -83,6 +84,7 @@ export class Game {
     craftingSystem: CraftingSystem,
     craftingUI: CraftingUI,
     furnaceUI: FurnaceUI,
+    inputState: InputState,
   ) {
     this.renderer = renderer;
     this.gameState = gameState;
@@ -91,13 +93,7 @@ export class Game {
     this.entities = entities;
     this.mobManager = mobManager;
     this.player = player;
-    // Inject handleToolUse into Player (since we construct Player outside in main.ts usually, wait...
-    // Game constructor receives Player. So Player is already created.
-    // We need to pass handleToolUse to Player constructor in main.ts.
-    // Or we can assign it here if Player has a setter or public field.
-    // But PlayerCombat is created in Player constructor.
-    // Let's check main.ts.
-    
+
     this.blockCursor = blockCursor;
     this.blockBreaking = blockBreaking;
     this.blockInteraction = blockInteraction;
@@ -106,6 +102,7 @@ export class Game {
     this.craftingSystem = craftingSystem;
     this.craftingUI = craftingUI;
     this.furnaceUI = furnaceUI;
+    this.inputState = inputState;
 
     // UI Systems
     this.cli = new CLI(this);
@@ -131,7 +128,7 @@ export class Game {
     try {
       // Передать ссылку на игру в ModLoader
       modLoader.setGame(this);
-      
+
       // Загрузить все моды
       await modLoader.loadAllMods();
     } catch (error) {
@@ -165,9 +162,9 @@ export class Game {
 
     // Cleanup input handlers
     if (this.inputHandlers) {
-      this.inputHandlers.keyboard.cleanup();
-      this.inputHandlers.mouse.cleanup();
-      this.inputHandlers.pointerLock.cleanup();
+      this.inputHandlers.keyboard?.cleanup();
+      this.inputHandlers.mouse?.cleanup();
+      this.inputHandlers.pointerLock?.cleanup();
     }
 
     // Stop auto-save
@@ -202,51 +199,25 @@ export class Game {
     const slotIndex = this.inventory.getSelectedSlot();
     const slot = this.inventory.getSlot(slotIndex);
 
-    if (slot.id >= 20 && slot.id < 40) {
-      // Initialize durability if missing
-      if (slot.durability === undefined) {
-        let max = 60; // Default Wood
-        if (
-          slot.id === BLOCK.STONE_SWORD ||
-          slot.id === BLOCK.STONE_PICKAXE ||
-          slot.id === BLOCK.STONE_AXE ||
-          slot.id === BLOCK.STONE_SHOVEL
-        ) {
-          max = TOOL_DURABILITY.STONE;
-        } else if (
-          slot.id === BLOCK.IRON_SWORD ||
-          slot.id === BLOCK.IRON_PICKAXE ||
-          slot.id === BLOCK.IRON_AXE ||
-          slot.id === BLOCK.IRON_SHOVEL
-        ) {
-          max = TOOL_DURABILITY.IRON;
-        } else if (
-            slot.id === BLOCK.WOODEN_SWORD ||
-            slot.id === BLOCK.WOODEN_PICKAXE ||
-            slot.id === BLOCK.WOODEN_AXE ||
-            slot.id === BLOCK.WOODEN_SHOVEL
-        ) {
-            max = TOOL_DURABILITY.WOOD;
-        }
+    if (!isTool(slot.id)) return;
 
-        slot.maxDurability = max;
-        slot.durability = max;
-      }
-
-      slot.durability -= amount;
-
-      if (slot.durability <= 0) {
-        // Break tool
-        this.inventory.setSlot(slotIndex, { id: 0, count: 0 });
-        // Play sound?
-      } else {
-        this.inventory.setSlot(slotIndex, slot);
-      }
-      
-      this.inventoryUI.refresh();
-      if (this.inventoryUI.onInventoryChange)
-        this.inventoryUI.onInventoryChange();
+    // Initialize durability if missing
+    if (slot.durability === undefined) {
+      const max = getToolDurability(slot.id);
+      slot.maxDurability = max;
+      slot.durability = max;
     }
+
+    slot.durability -= amount;
+
+    if (slot.durability <= 0) {
+      this.inventory.setSlot(slotIndex, { id: 0, count: 0 });
+    } else {
+      this.inventory.setSlot(slotIndex, slot);
+    }
+
+    this.inventoryUI.refresh();
+    this.inventoryUI.emitInventoryChange();
   };
 
   private update(): void {
@@ -273,7 +244,7 @@ export class Game {
 
     // Player Update (Physics & Hand)
     this.profiler?.startMeasure('player-update');
-    this.player.update(delta);
+    this.player.update(delta, this.inputState);
     this.profiler?.endMeasure('player-update');
 
     // Block Breaking
@@ -282,7 +253,7 @@ export class Game {
     this.profiler?.endMeasure('block-breaking');
 
     // Attack / Mining
-    if (this.isAttackPressed && this.gameState.getGameStarted()) {
+    if (this.inputState.isAttackPressed && this.gameState.getGameStarted()) {
       if (!this.blockBreaking.isBreakingNow())
         this.blockBreaking.start(this.world);
       this.player.combat.performAttack();
@@ -290,45 +261,22 @@ export class Game {
 
     // Interaction / Eating
     if (this.gameState.getGameStarted()) {
-        this.blockInteraction.update(delta, this.isUsePressed);
-        this.player.hand.setEating(this.blockInteraction.getIsEating());
+      this.blockInteraction.update(delta, this.inputState.isUsePressed);
+      this.player.hand.setEating(this.blockInteraction.getIsEating());
     }
+
+    // Keeping imports that are used. PICKUP_DISTANCE is used? No, I removed the block causing it.
 
     // Entities
     this.profiler?.startMeasure('entities-update');
-    for (let i = this.entities.length - 1; i >= 0; i--) {
-      const entity = this.entities[i];
-      
-      // Entity culling: скрыть дальние предметы
-      const distance = entity.mesh.position.distanceTo(
-        this.renderer.controls.object.position,
-      );
-      entity.mesh.visible = distance < ENTITY_VISIBILITY_DISTANCE; // 40 блоков видимости
-
-      // Обновлять физику только для видимых
-      if (entity.mesh.visible) {
-        entity.update(time / 1000, delta);
-      }
-
-      if (entity.isDead) {
-        this.entities.splice(i, 1);
-        continue;
-      }
-
-      if (distance < PICKUP_DISTANCE) {
-        // Pickup logic
-        const remaining = this.inventory.addItem(entity.type, entity.count);
-        entity.count = remaining;
-
-        if (remaining === 0) {
-          entity.dispose();
-          this.entities.splice(i, 1);
-        }
-
-        this.inventoryUI.refresh();
-        if (this.inventoryUI.onInventoryChange)
-          this.inventoryUI.onInventoryChange();
-      }
+    // usage of entitySystem from context or passed in constructor?
+    // GameInitializer returns 'entities' array, but not 'entitySystem'.
+    // We can access via GameContext if we trust it's initialized.
+    // Or we should update Game constructor.
+    // Let's use GameContext for now as we are moving towards it.
+    const context = GameContext.getInstance();
+    if (context.entitySystem) {
+      context.entitySystem.update(delta, time / 1000);
     }
     this.profiler?.endMeasure('entities-update');
 

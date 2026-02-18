@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import { PerspectiveCamera } from "three";
 import { Scene } from "three";
+import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
-import { globalEventBus } from "../modding";
+import { eventManager } from "../core/EventManager";
+import { GameEvents } from "../core/GameEvents";
 
 export class BlockBreaking {
   private crackMesh: THREE.Mesh;
@@ -13,8 +15,8 @@ export class BlockBreaking {
   private scene: Scene;
   private controls: PointerLockControls;
   private cursorMesh?: THREE.Mesh;
-  
-  // Raycast кэширование
+
+  // Raycast cashing
   private chunkMeshes: THREE.Object3D[] = [];
   private lastCacheUpdate: number = 0;
   private readonly CACHE_UPDATE_INTERVAL: number = 500; // ms
@@ -25,26 +27,18 @@ export class BlockBreaking {
   private currentBreakId: number = 0;
 
   private getSelectedSlotItem: () => number;
-  private onBlockBreak?: (
-    x: number,
-    y: number,
-    z: number,
-    blockId: number,
-  ) => void;
 
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    controls: any,
+    controls: PointerLockControls,
     getSelectedSlotItem: () => number,
-    onBlockBreak?: (x: number, y: number, z: number, blockId: number) => void,
     cursorMesh?: THREE.Mesh,
   ) {
     this.scene = scene;
     this.camera = camera;
     this.controls = controls;
     this.getSelectedSlotItem = getSelectedSlotItem;
-    this.onBlockBreak = onBlockBreak;
     this.cursorMesh = cursorMesh;
     this.raycaster = new THREE.Raycaster();
 
@@ -114,12 +108,12 @@ export class BlockBreaking {
   }
 
   /**
-   * Обновить кэш chunk meshes для raycast
+   * Update chunk meshes cache for raycast
    */
   private updateChunkMeshCache(): void {
     const now = performance.now();
     if (now - this.lastCacheUpdate < this.CACHE_UPDATE_INTERVAL) return;
-    
+
     this.lastCacheUpdate = now;
     this.chunkMeshes = this.scene.children.filter(
       (obj) =>
@@ -210,15 +204,13 @@ export class BlockBreaking {
       const y = this.currentBreakBlock.y;
       const z = this.currentBreakBlock.z;
 
-      // Emit event for mods
-      globalEventBus.emit('world:blockBreak', {
-        x, y, z,
+      eventManager.emit(GameEvents.BLOCK_BROKEN, {
+        x,
+        y,
+        z,
         blockId: this.currentBreakId,
+        toolId,
       });
-
-      if (this.onBlockBreak) {
-        this.onBlockBreak(x, y, z, this.currentBreakId);
-      }
 
       this.stop();
     } else {

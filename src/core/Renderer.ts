@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
+import { isMobile } from "../utils/PlatformUtils";
 
 export class Renderer {
   public scene: THREE.Scene;
@@ -8,15 +9,12 @@ export class Renderer {
   public uiCamera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer;
   public controls: PointerLockControls;
-  private isMobile: boolean;
+  private _isMobile: boolean;
 
   constructor() {
-    this.isMobile =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent,
-      );
+    this._isMobile = isMobile();
 
-    if (this.isMobile) {
+    if (this._isMobile) {
       document.body.classList.add("is-mobile");
     }
 
@@ -49,12 +47,12 @@ export class Renderer {
     this.uiScene.add(this.uiCamera);
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: !this.isMobile });
+    this.renderer = new THREE.WebGLRenderer({ antialias: !this._isMobile });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, this.isMobile ? 1.5 : 2),
+      Math.min(window.devicePixelRatio, this._isMobile ? 1.5 : 2),
     );
-    this.renderer.shadowMap.enabled = !this.isMobile;
+    this.renderer.shadowMap.enabled = !this._isMobile;
     this.renderer.autoClear = false; // Manual clearing for overlay
     document.body.appendChild(this.renderer.domElement);
 
@@ -73,7 +71,7 @@ export class Renderer {
   }
 
   public getIsMobile(): boolean {
-    return this.isMobile;
+    return this._isMobile;
   }
 
   public render(): void {
