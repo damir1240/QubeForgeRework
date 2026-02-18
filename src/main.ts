@@ -102,10 +102,6 @@ async function initializeGame() {
     });
   }
 
-  // Input Handlers are now managed by InputSystem, 
-  // but Game might expect inputHandlers property for some reason?
-  // Game.ts definitions: public inputHandlers: { keyboard?: KeyboardHandler; mouse?: MouseHandler; pointerLock?: PointerLockHandler; };
-  // We should populate it for backward compatibility if Game uses it.
   game.inputHandlers = {
     keyboard: inputSystem.keyboardHandler,
     mouse: inputSystem.mouseHandler,

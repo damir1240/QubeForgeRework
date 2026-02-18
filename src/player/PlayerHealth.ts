@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-import { globalEventBus } from '../modding';
 import { INVULNERABILITY_DURATION } from '../constants/GameConstants';
 import { logger } from '../utils/Logger';
 import { eventManager } from '../core/EventManager';
@@ -59,13 +58,6 @@ export class PlayerHealth {
       amount,
       current: this.hp,
       max: this.maxHp
-    });
-
-    // Emit event for mods (legacy)
-    globalEventBus.emit('player:damage', {
-      amount,
-      newHp: this.hp,
-      maxHp: this.maxHp,
     });
 
     this.isInvulnerable = true;
