@@ -28,6 +28,7 @@ export class KeyboardHandler {
     if (key >= 1 && key <= 9) {
       this.inventory.setSelectedSlot(key - 1);
       this.inventoryUI.refresh();
+      this.inventoryUI.emitInventoryChange();
       eventManager.emit(GameEvents.UI_HOTBAR_CHANGE, {});
     }
   };
