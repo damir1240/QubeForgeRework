@@ -6,19 +6,20 @@ import { BlockColors } from "../../constants/BlockColors";
 
 export class ChunkMeshBuilder {
   private noiseTexture: THREE.DataTexture;
-  
+
   // Shared material для всех чанков (экономия памяти)
   private static sharedMaterial: THREE.MeshStandardMaterial | null = null;
-  
+
   // Object pooling для массивов (уменьшает GC паузы)
   private positionsPool: number[] = [];
   private normalsPool: number[] = [];
   private uvsPool: number[] = [];
   private colorsPool: number[] = [];
+  private slotIdsPool: number[] = [];
 
   constructor() {
     this.noiseTexture = TextureAtlas.createNoiseTexture();
-    
+
     // Создать shared material один раз
     if (!ChunkMeshBuilder.sharedMaterial) {
       ChunkMeshBuilder.sharedMaterial = new THREE.MeshStandardMaterial({
@@ -30,6 +31,64 @@ export class ChunkMeshBuilder {
         depthWrite: true,
         side: THREE.DoubleSide,
       });
+
+      // Патч шейдера для поддержки Greedy Meshing в Атласе
+      ChunkMeshBuilder.sharedMaterial.onBeforeCompile = (shader) => {
+        // Vertex Shader
+        shader.vertexShader = `
+          attribute float aSlotId;
+          varying float vSlotId;
+          ${shader.vertexShader}
+        `;
+
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          `#include <common>
+           varying vec2 vMeshUV;`
+        ).replace(
+          '#include <uv_vertex>',
+          `#include <uv_vertex>
+           vMeshUV = uv;
+           vSlotId = aSlotId;`
+        );
+
+        // Fragment Shader
+        shader.fragmentShader = `
+          varying float vSlotId;
+          ${shader.fragmentShader}
+        `;
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          `#include <common>
+           varying vec2 vMeshUV;`
+        ).replace(
+          '#include <map_fragment>',
+          `
+          #ifdef USE_MAP
+            // Greedy Meshing Atlas mapping
+            float slotSize = 1.0 / 12.0;
+            
+            // vMeshUV.x contains the local Tiling (0..w)
+            // vSlotId contains the texture Slog Index
+            
+            float localU = fract(vMeshUV.x);
+            float atlasU = (vSlotId + localU) * slotSize;
+            
+            // Adjust to avoid bleeding (optional, small inset)
+            // But with NearestFilter it should be fine if we stay within bounds
+            
+            // V is standard 0..1 (assuming single row atlas)
+            // If V also tiled (height > 1), we use fract(vMeshUV.y)
+            float atlasV = fract(vMeshUV.y);
+            
+            vec2 tiledUV = vec2(atlasU, atlasV);
+            vec4 texelColor = texture2D( map, tiledUV );
+            diffuseColor *= texelColor;
+          #endif
+          `
+        );
+      };
     }
   }
 
@@ -43,212 +102,202 @@ export class ChunkMeshBuilder {
     cz: number,
     chunkSize: number,
     chunkHeight: number,
-    _getBlockIndex: (x: number, y: number, z: number) => number,
-    getNeighborBlock: (x: number, y: number, z: number) => number,
+    _getBlockIndex?: (x: number, y: number, z: number) => number,
+    _getNeighborBlock?: (x: number, y: number, z: number) => number,
   ): THREE.Mesh {
-    // Переиспользуем массивы из пула (очищаем вместо создания новых)
     this.positionsPool.length = 0;
     this.normalsPool.length = 0;
     this.uvsPool.length = 0;
     this.colorsPool.length = 0;
-    
-    const positions = this.positionsPool;
-    const normals = this.normalsPool;
-    const uvs = this.uvsPool;
-    const colors = this.colorsPool;
+    this.slotIdsPool.length = 0;
 
     const startX = cx * chunkSize;
     const startZ = cz * chunkSize;
+    const actualDims = [chunkSize, chunkHeight, chunkSize];
 
-    // Предвычислить границы Y с блоками (пропустить пустые слои)
-    let minY = chunkHeight;
-    let maxY = 0;
-    
-    for (let y = 0; y < chunkHeight; y++) {
-      let hasBlocks = false;
-      for (let x = 0; x < chunkSize && !hasBlocks; x++) {
-        for (let z = 0; z < chunkSize && !hasBlocks; z++) {
-          const index = x + y * chunkSize + z * chunkSize * chunkHeight;
-          if (data[index] !== BLOCK.AIR) {
-            hasBlocks = true;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
+    /**
+     * Greedy Meshing Algorithm
+     * Проходим по каждой из 6 сторон (d = 0..5, или x,y,z в обе стороны)
+     */
+    for (let d = 0; d < 3; d++) {
+      const u = (d + 1) % 3;
+      const v = (d + 2) % 3;
+      const x = [0, 0, 0];
+      const q = [0, 0, 0];
+      const mask = new Int32Array(actualDims[u] * actualDims[v]);
+
+      q[d] = 1;
+
+      for (x[d] = -1; x[d] < actualDims[d];) {
+        let n = 0;
+        for (x[v] = 0; x[v] < actualDims[v]; ++x[v]) {
+          for (x[u] = 0; x[u] < actualDims[u]; ++x[u]) {
+            const blockA = (x[d] >= 0) ? this.getBlockAt(data, x[0], x[1], x[2], actualDims) : BLOCK.AIR;
+            const blockB = (x[d] < actualDims[d] - 1) ? this.getBlockAt(data, x[0] + q[0], x[1] + q[1], x[2] + q[2], actualDims) : BLOCK.AIR;
+
+            const isOpaqueA = blockA !== BLOCK.AIR;
+            const isOpaqueB = blockB !== BLOCK.AIR;
+
+            if (isOpaqueA === isOpaqueB) {
+              mask[n++] = 0;
+            } else if (isOpaqueA) {
+              mask[n++] = blockA;
+            } else {
+              mask[n++] = -blockB;
+            }
+          }
+        }
+
+        x[d]++;
+        n = 0;
+
+        for (let j = 0; j < actualDims[v]; ++j) {
+          for (let i = 0; i < actualDims[u];) {
+            const type = mask[n];
+            if (type !== 0) {
+              const absType = Math.abs(type);
+              const isMergeable = absType !== BLOCK.LEAVES;
+
+              let w, h;
+              // Compute width
+              for (w = 1; isMergeable && i + w < actualDims[u] && mask[n + w] === type; ++w) { }
+
+              // Compute height
+              let done = false;
+              for (h = 1; j + h < actualDims[v]; ++h) {
+                if (!isMergeable && h >= 1) break; // Leaves are 1x1
+                for (let k = 0; k < w; ++k) {
+                  if (mask[n + k + h * actualDims[u]] !== type) {
+                    done = true;
+                    break;
+                  }
+                }
+                if (done) break;
+              }
+
+              // Add Quad
+              x[u] = i;
+              x[v] = j;
+              const du = [0, 0, 0];
+              const dv = [0, 0, 0];
+              du[u] = w;
+              dv[v] = h;
+
+              this.addQuad(
+                x, du, dv,
+                absType,
+                type > 0,
+                d, w, h,
+                startX, startZ
+              );
+
+              // Clear mask
+              for (let l = 0; l < h; ++l) {
+                for (let m = 0; m < w; ++m) {
+                  mask[n + m + l * actualDims[u]] = 0;
+                }
+              }
+              i += w;
+              n += w;
+            } else {
+              i++;
+              n++;
+            }
           }
         }
       }
     }
 
-    // Если чанк пустой
-    if (minY > maxY) {
-      return this.createMesh(positions, normals, uvs, colors, startX, startZ);
-    }
-
-    // Расширить границы на 1 для корректной проверки соседей
-    minY = Math.max(0, minY - 1);
-    maxY = Math.min(chunkHeight - 1, maxY + 1);
-
-    // Кэшированные значения для быстрого доступа
-    const chunkSizeHeight = chunkSize * chunkHeight;
-
-    for (let y = minY; y <= maxY; y++) {
-      const yOffset = y * chunkSize;
-      
-      for (let x = 0; x < chunkSize; x++) {
-        for (let z = 0; z < chunkSize; z++) {
-          const index = x + yOffset + z * chunkSizeHeight;
-          const type = data[index];
-
-          if (type === BLOCK.AIR) continue;
-
-          const worldX = startX + x;
-          const worldZ = startZ + z;
-
-          // Кэшируем соседей для occlusion culling
-          const neighborTop = getNeighborBlock(worldX, y + 1, worldZ);
-          const neighborBottom = getNeighborBlock(worldX, y - 1, worldZ);
-          const neighborFront = getNeighborBlock(worldX, y, worldZ + 1);
-          const neighborBack = getNeighborBlock(worldX, y, worldZ - 1);
-          const neighborRight = getNeighborBlock(worldX + 1, y, worldZ);
-          const neighborLeft = getNeighborBlock(worldX - 1, y, worldZ);
-
-          // Occlusion culling: пропустить полностью закрытые блоки
-          const topTransparent = this.isTransparent(neighborTop);
-          const bottomTransparent = this.isTransparent(neighborBottom);
-          const frontTransparent = this.isTransparent(neighborFront);
-          const backTransparent = this.isTransparent(neighborBack);
-          const rightTransparent = this.isTransparent(neighborRight);
-          const leftTransparent = this.isTransparent(neighborLeft);
-
-          // Если все соседи непрозрачны - блок полностью закрыт, пропускаем
-          if (!topTransparent && !bottomTransparent && 
-              !frontTransparent && !backTransparent && 
-              !rightTransparent && !leftTransparent) {
-            continue;
-          }
-
-          // Добавляем только видимые грани
-          if (topTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "top", startX, startZ);
-          }
-          if (bottomTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "bottom", startX, startZ);
-          }
-          if (frontTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "front", startX, startZ);
-          }
-          if (backTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "back", startX, startZ);
-          }
-          if (rightTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "right", startX, startZ);
-          }
-          if (leftTransparent) {
-            this.addFace(positions, normals, uvs, colors, x, y, z, type, "left", startX, startZ);
-          }
-        }
-      }
-    }
-
-    return this.createMesh(positions, normals, uvs, colors, startX, startZ);
+    return this.createMesh(this.positionsPool, this.normalsPool, this.uvsPool, this.colorsPool, this.slotIdsPool, startX, startZ);
   }
 
-  private isTransparent(blockType: number): boolean {
-    return blockType === BLOCK.AIR || blockType === BLOCK.LEAVES;
+  private getBlockAt(data: Uint8Array, x: number, y: number, z: number, dims: number[]): number {
+    if (x < 0 || x >= dims[0] || y < 0 || y >= dims[1] || z < 0 || z >= dims[2]) return BLOCK.AIR;
+    return data[x + y * dims[0] + z * dims[0] * dims[1]];
   }
 
-  private addFace(
-    positions: number[],
-    normals: number[],
-    uvs: number[],
-    colors: number[],
-    x: number,
-    y: number,
-    z: number,
+  private addQuad(
+    pos: number[],
+    du: number[],
+    dv: number[],
     type: number,
-    side: string,
+    isForward: boolean,
+    dim: number,
+    w: number,
+    h: number,
     startX: number,
-    startZ: number,
+    startZ: number
   ) {
-    const x0 = x;
-    const x1 = x + 1;
-    const y0 = y;
-    const y1 = y + 1;
-    const z0 = z;
-    const z1 = z + 1;
+    const v0 = [pos[0], pos[1], pos[2]];
+    const v1 = [pos[0] + du[0], pos[1] + du[1], pos[2] + du[2]];
+    const v2 = [pos[0] + du[0] + dv[0], pos[1] + du[1] + dv[1], pos[2] + du[2] + dv[2]];
+    const v3 = [pos[0] + dv[0], pos[1] + dv[1], pos[2] + dv[2]];
 
-    // Add vertices based on side
-    if (side === "top") {
-      positions.push(x0, y1, z1, x1, y1, z1, x0, y1, z0, x1, y1, z0);
-      normals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0);
-    } else if (side === "bottom") {
-      positions.push(x0, y0, z0, x1, y0, z0, x0, y0, z1, x1, y0, z1);
-      normals.push(0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0);
-    } else if (side === "front") {
-      positions.push(x0, y0, z1, x1, y0, z1, x0, y1, z1, x1, y1, z1);
-      normals.push(0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1);
-    } else if (side === "back") {
-      positions.push(x1, y0, z0, x0, y0, z0, x1, y1, z0, x0, y1, z0);
-      normals.push(0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1);
-    } else if (side === "right") {
-      positions.push(x1, y0, z1, x1, y0, z0, x1, y1, z1, x1, y1, z0);
-      normals.push(1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0);
-    } else if (side === "left") {
-      positions.push(x0, y0, z0, x0, y0, z1, x0, y1, z0, x0, y1, z1);
-      normals.push(-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0);
+    // В зависимости от направления грани (forward/back) меняем порядок вершин
+    if (isForward) {
+      this.positionsPool.push(...v0, ...v1, ...v3, ...v1, ...v2, ...v3);
+    } else {
+      this.positionsPool.push(...v0, ...v3, ...v1, ...v1, ...v3, ...v2);
     }
 
-    // Add UVs
-    const { u0, u1 } = this.getUVCoords(type, side, startX + x, y, startZ + z);
-    uvs.push(u0, 0, u1, 0, u0, 1, u1, 1);
+    // Нормаль
+    const n = [0, 0, 0];
+    n[dim] = isForward ? 1 : -1;
+    for (let i = 0; i < 6; i++) this.normalsPool.push(...n);
 
-    // Add colors
-    const { r, g, b } = this.getBlockColor(type, side);
-    for (let i = 0; i < 4; i++) {
-      colors.push(r, g, b);
+    // Цвет и UV
+    const side = this.getSideName(dim, isForward);
+    const color = this.getBlockColor(type, side);
+    for (let i = 0; i < 6; i++) this.colorsPool.push(color.r, color.g, color.b);
+
+    // UVs для Greedy Mesh
+    // Передаем количество повторений (tile count) в UV
+    // Шейдер будет использовать fract() для тайлинга
+    const uvCoords = isForward
+      ? [0, 0, w, 0, 0, h, w, 0, w, h, 0, h]
+      : [0, 0, 0, h, w, 0, w, 0, 0, h, w, h];
+
+    for (let i = 0; i < uvCoords.length; i += 2) {
+      this.uvsPool.push(uvCoords[i], uvCoords[i + 1]);
+    }
+
+    // Slot IDs
+    // Определяем слот текстуры для этого типа блока и стороны
+    // Мы передаем его в отдельный атрибут для каждого вершины
+    const slot = this.getSlotForType(type, side, startX + pos[0], pos[1], startZ + pos[2]);
+    for (let i = 0; i < 6; i++) {
+      this.slotIdsPool.push(slot);
     }
   }
 
-  private getUVCoords(
-    type: number,
-    side: string,
-    worldX: number,
-    worldY: number,
-    worldZ: number,
-  ): { u0: number; u1: number } {
-    const uvStep = TextureAtlas.getUVStep();
-    const uvInset = 0.001;
-    let slot = 0;
-
-    if (type === BLOCK.LEAVES) slot = 1;
-    else if (type === BLOCK.PLANKS) slot = 2;
-    else if (type === BLOCK.CRAFTING_TABLE) {
-      if (side === "top") slot = 3;
-      else if (side === "bottom") slot = 5;
-      else slot = 4;
-    } else if (type === BLOCK.COAL_ORE) slot = 6;
-    else if (type === BLOCK.IRON_ORE) slot = 7;
-    else if (type === BLOCK.FURNACE) {
-      if (side === "top") slot = 10;
-      else if (side === "bottom") slot = 9;
-      else {
-        const furnace = FurnaceManager.getInstance().getFurnace(worldX, worldY, worldZ);
-        const rot = furnace?.rotation ?? 0;
-
-        let frontFace = "front";
-        if (rot === 0) frontFace = "back";
-        else if (rot === 1) frontFace = "right";
-        else if (rot === 2) frontFace = "front";
-        else if (rot === 3) frontFace = "left";
-
-        slot = side === frontFace ? 8 : 9;
-      }
-    }
-
-    return {
-      u0: uvStep * slot + uvInset,
-      u1: uvStep * (slot + 1) - uvInset,
-    };
+  private getSideName(dim: number, isForward: boolean): string {
+    if (dim === 0) return isForward ? "right" : "left";
+    if (dim === 1) return isForward ? "top" : "bottom";
+    return isForward ? "front" : "back";
   }
+
+  private getSlotForType(type: number, side: string, worldX: number, worldY: number, worldZ: number): number {
+    if (type === BLOCK.LEAVES) return 1;
+    if (type === BLOCK.PLANKS) return 2;
+    if (type === BLOCK.CRAFTING_TABLE) {
+      if (side === "top") return 3;
+      if (side === "bottom") return 5;
+      return 4;
+    }
+    if (type === BLOCK.COAL_ORE) return 6;
+    if (type === BLOCK.IRON_ORE) return 7;
+    if (type === BLOCK.FURNACE) {
+      if (side === "top") return 10;
+      if (side === "bottom") return 9;
+      const furnace = FurnaceManager.getInstance().getFurnace(worldX, worldY, worldZ);
+      const rot = furnace?.rotation ?? 0;
+      let frontFace = (rot === 0) ? "back" : (rot === 1) ? "right" : (rot === 2) ? "front" : "left";
+      return side === frontFace ? 8 : 9;
+    }
+    return 0; // Grass/Stone default
+  }
+
+
 
   private getBlockColor(type: number, side: string): { r: number; g: number; b: number } {
     return BlockColors.getColorForFace(type, side);
@@ -259,31 +308,22 @@ export class ChunkMeshBuilder {
     normals: number[],
     uvs: number[],
     colors: number[],
+    slotIds: number[],
     startX: number,
     startZ: number,
   ): THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
-    const indices: number[] = [];
-
-    const vertCount = positions.length / 3;
-    for (let i = 0; i < vertCount; i += 4) {
-      indices.push(i, i + 1, i + 2);
-      indices.push(i + 2, i + 1, i + 3);
-    }
-
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    geometry.setIndex(indices);
+    geometry.setAttribute("aSlotId", new THREE.Float32BufferAttribute(slotIds, 1));
     geometry.computeBoundingSphere();
 
-    // Используем shared material для всех чанков
     const mesh = new THREE.Mesh(geometry, ChunkMeshBuilder.sharedMaterial!);
     mesh.position.set(startX, 0, startZ);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-
     return mesh;
   }
 }

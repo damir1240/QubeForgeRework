@@ -19,6 +19,9 @@ export class KeyboardHandler {
   private keyDownHandler = (e: KeyboardEvent) => this.onKeyDown(e);
   private keyUpHandler = (e: KeyboardEvent) => this.onKeyUp(e);
   private contextMenuHandler = (e: Event) => e.preventDefault();
+
+
+
   private hotbarKeyHandler = (event: KeyboardEvent) => {
     const key = parseInt(event.key);
     if (key >= 1 && key <= 9) {
@@ -44,6 +47,8 @@ export class KeyboardHandler {
   }
 
   private init(): void {
+
+
     document.addEventListener("keydown", this.keyDownHandler);
     document.addEventListener("keyup", this.keyUpHandler);
     document.addEventListener("contextmenu", this.contextMenuHandler);
@@ -51,6 +56,7 @@ export class KeyboardHandler {
   }
 
   public cleanup(): void {
+
     document.removeEventListener("keydown", this.keyDownHandler);
     document.removeEventListener("keyup", this.keyUpHandler);
     document.removeEventListener("contextmenu", this.contextMenuHandler);
@@ -58,6 +64,8 @@ export class KeyboardHandler {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
+
+
     if (this.cli.isOpen) return;
 
     const inventoryMenu = document.getElementById("inventory-menu")!;
@@ -101,28 +109,26 @@ export class KeyboardHandler {
           }
         }
         break;
-      case "ArrowUp":
       case "KeyW":
         this.inputState.moveForward = true;
         break;
-      case "ArrowLeft":
       case "KeyA":
         this.inputState.moveLeft = true;
         break;
-      case "ArrowDown":
       case "KeyS":
         this.inputState.moveBackward = true;
         break;
-      case "ArrowRight":
       case "KeyD":
         this.inputState.moveRight = true;
         break;
-      case "ControlLeft":
-      case "ControlRight":
-        this.inputState.isSprinting = !this.inputState.isSprinting;
+
+      case "ShiftLeft":
+      case "ShiftRight":
+        this.inputState.isSprinting = true;
         break;
       case "Space":
-        this.inputState.isJumping = true; // Was player.physics.jump(), now state flag
+        event.preventDefault();
+        this.inputState.isJumping = true;
         break;
       case "KeyE":
         if (!this.gameState.getPaused()) {
@@ -145,7 +151,6 @@ export class KeyboardHandler {
       case "ArrowUp":
       case "KeyW":
         this.inputState.moveForward = false;
-        this.inputState.isSprinting = false;
         break;
       case "ArrowLeft":
       case "KeyA":
@@ -158,6 +163,11 @@ export class KeyboardHandler {
       case "ArrowRight":
       case "KeyD":
         this.inputState.moveRight = false;
+        break;
+
+      case "ShiftLeft":
+      case "ShiftRight":
+        this.inputState.isSprinting = false;
         break;
       case "Space":
         this.inputState.isJumping = false;

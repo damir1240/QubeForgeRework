@@ -21,31 +21,125 @@ const BLOCK = {
   FURNACE: 14,
 } as const;
 
-// Параметры генерации
-const TERRAIN_SCALE = 50;
-const TERRAIN_HEIGHT = 8;
-const BASE_HEIGHT = 20;
+// --- Утилиты ---
 
-// Кэш noise функции для текущего seed
-let currentSeed: number = 0;
-let noise2D: (x: number, y: number) => number;
+/**
+ * Сплайн для нелинейного преобразования значений шума.
+ * Позволяет задавать кривую: вход (шум) -> выход (высота/параметр).
+ */
+class Spline {
+  private points: { x: number; y: number }[];
+  constructor(points: { x: number; y: number }[]) {
+    this.points = [...points].sort((a, b) => a.x - b.x);
+  }
 
-function createNoiseGenerator(seed: number) {
-  let a = seed;
-  const random = () => {
-    let t = (a += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  return createNoise2D(random);
+  public get(x: number): number {
+    if (x <= this.points[0].x) return this.points[0].y;
+    if (x >= this.points[this.points.length - 1].x) return this.points[this.points.length - 1].y;
+
+    for (let i = 0; i < this.points.length - 1; i++) {
+      const p1 = this.points[i];
+      const p2 = this.points[i + 1];
+      if (x >= p1.x && x <= p2.x) {
+        const t = (x - p1.x) / (p2.x - p1.x);
+        return p1.y + t * (p2.y - p1.y);
+      }
+    }
+    return 0;
+  }
 }
 
-function getTerrainHeight(worldX: number, worldZ: number): number {
-  const noiseValue = noise2D(worldX / TERRAIN_SCALE, worldZ / TERRAIN_SCALE);
-  let height = Math.floor(noiseValue * TERRAIN_HEIGHT) + BASE_HEIGHT;
-  if (height < 1) height = 1;
-  return height;
+// Конфигурация шумов
+const NOISE_CONFIG = {
+  CONTINENTALNESS: {
+    scale: 400, spline: new Spline([
+      { x: -1.0, y: 0.1 },  // Глубокий океан
+      { x: -0.2, y: 0.3 },  // Мелководье
+      { x: 0.0, y: 0.45 }, // Берег
+      { x: 0.2, y: 0.5 },  // Равнины
+      { x: 0.6, y: 0.8 },  // Высокогорье
+      { x: 1.0, y: 1.0 }   // Пики
+    ])
+  },
+  EROSION: {
+    scale: 300, spline: new Spline([
+      { x: -1.0, y: 1.0 },  // Острые пики
+      { x: -0.2, y: 0.5 },  // Холмы
+      { x: 0.2, y: 0.1 },  // Плоские равнины
+      { x: 1.0, y: 0.0 }   // Идеально ровно
+    ])
+  },
+  TEMPERATURE: { scale: 500 },
+  HUMIDITY: { scale: 500 }
+};
+
+const WORLD_MAX_HEIGHT = 128;
+const SEA_LEVEL = 32;
+
+// Кэш noise функций (линтер требует инициализации)
+let currentSeed: number = 0;
+let noiseC: (x: number, y: number) => number = () => 0;
+let noiseE: (x: number, y: number) => number = () => 0;
+let noiseT: (x: number, y: number) => number = () => 0;
+let noiseH: (x: number, y: number) => number = () => 0;
+
+function createNoiseGenerator(seed: number) {
+  const seededRandom = (s: number) => {
+    let a = s;
+    return () => {
+      let t = (a += 0x6d2b79f5);
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  return {
+    c: createNoise2D(seededRandom(seed)),
+    e: createNoise2D(seededRandom(seed + 1)),
+    t: createNoise2D(seededRandom(seed + 2)),
+    h: createNoise2D(seededRandom(seed + 3))
+  };
+}
+
+interface Biome {
+  id: string;
+  topBlock: number;
+  fillerBlock: number;
+  stoneBlock: number;
+}
+
+const BIOMES: Record<string, Biome> = {
+  DESERT: { id: 'desert', topBlock: BLOCK.STONE, fillerBlock: BLOCK.STONE, stoneBlock: BLOCK.STONE }, // Placeholder for sand
+  PLAINS: { id: 'plains', topBlock: BLOCK.GRASS, fillerBlock: BLOCK.DIRT, stoneBlock: BLOCK.STONE },
+  MOUNTAINS: { id: 'mountains', topBlock: BLOCK.STONE, fillerBlock: BLOCK.STONE, stoneBlock: BLOCK.STONE },
+  SNOW: { id: 'snow', topBlock: BLOCK.STONE, fillerBlock: BLOCK.STONE, stoneBlock: BLOCK.STONE } // Placeholder for snow
+};
+
+// Простой селектор биомов
+function getBiome(temp: number, humidity: number): Biome {
+  if (temp > 0.5) {
+    return humidity < 0 ? BIOMES.DESERT : BIOMES.PLAINS;
+  }
+  return temp < -0.5 ? BIOMES.SNOW : BIOMES.PLAINS;
+}
+
+function getTerrainHeight(worldX: number, worldZ: number): { height: number, biome: Biome } {
+  const c = noiseC(worldX / NOISE_CONFIG.CONTINENTALNESS.scale, worldZ / NOISE_CONFIG.CONTINENTALNESS.scale);
+  const e = noiseE(worldX / NOISE_CONFIG.EROSION.scale, worldZ / NOISE_CONFIG.EROSION.scale);
+  const t = noiseT(worldX / NOISE_CONFIG.TEMPERATURE.scale, worldZ / NOISE_CONFIG.TEMPERATURE.scale);
+  const h = noiseH(worldX / NOISE_CONFIG.HUMIDITY.scale, worldZ / NOISE_CONFIG.HUMIDITY.scale);
+
+  const baseHeightFactor = NOISE_CONFIG.CONTINENTALNESS.spline.get(c);
+  const erosionFactor = NOISE_CONFIG.EROSION.spline.get(e);
+
+  // Комбинируем: базовая высота континента + влияние эрозии
+  let height = SEA_LEVEL + (baseHeightFactor * (WORLD_MAX_HEIGHT - SEA_LEVEL)) * (0.5 + erosionFactor * 0.5);
+
+  return {
+    height: Math.floor(height),
+    biome: getBiome(t, h)
+  };
 }
 
 function getBlockIndex(x: number, y: number, z: number, chunkSize: number, chunkHeight: number): number {
@@ -64,14 +158,14 @@ function generateTerrain(
       const worldX = startX + x;
       const worldZ = startZ + z;
 
-      let height = getTerrainHeight(worldX, worldZ);
-      if (height >= chunkHeight) height = chunkHeight - 1;
+      const { height, biome } = getTerrainHeight(worldX, worldZ);
+      const safeHeight = Math.min(height, chunkHeight - 1);
 
-      for (let y = 0; y <= height; y++) {
-        let type = BLOCK.STONE;
+      for (let y = 0; y <= safeHeight; y++) {
+        let type = biome.stoneBlock;
         if (y === 0) type = BLOCK.BEDROCK;
-        else if (y === height) type = BLOCK.GRASS;
-        else if (y >= height - 3) type = BLOCK.DIRT;
+        else if (y === safeHeight) type = biome.topBlock;
+        else if (y >= safeHeight - 3) type = biome.fillerBlock;
 
         const index = getBlockIndex(x, y, z, chunkSize, chunkHeight);
         data[index] = type;
@@ -110,7 +204,7 @@ function generateVein(
 
     const worldX = startX + vx;
     const worldZ = startZ + vz;
-    const surfaceHeight = getTerrainHeight(worldX, worldZ);
+    const { height: surfaceHeight } = getTerrainHeight(worldX, worldZ);
     const maxStoneY = Math.max(2, surfaceHeight - 3);
 
     let vy = Math.floor(Math.random() * (maxStoneY - 1)) + 1;
@@ -155,32 +249,24 @@ function generateVein(
   }
 }
 
-function findSurfaceHeight(
-  data: Uint8Array,
-  chunkSize: number,
-  chunkHeight: number,
-  x: number,
-  z: number,
-): number {
-  for (let y = chunkHeight - 1; y >= 0; y--) {
-    if (data[getBlockIndex(x, y, z, chunkSize, chunkHeight)] !== BLOCK.AIR) {
-      return y;
-    }
-  }
-  return -1;
-}
 
 function generateTrees(
   data: Uint8Array,
   chunkSize: number,
   chunkHeight: number,
+  startX: number,
+  startZ: number,
 ) {
   for (let x = 2; x < chunkSize - 2; x++) {
     for (let z = 2; z < chunkSize - 2; z++) {
-      const height = findSurfaceHeight(data, chunkSize, chunkHeight, x, z);
-      if (height > 0) {
+      const worldX = startX + x;
+      const worldZ = startZ + z;
+      const { height, biome } = getTerrainHeight(worldX, worldZ);
+
+      // Trees only in Plains for now to demonstrate biome specificity
+      if (biome.id === 'plains' && height > 0 && height < chunkHeight) {
         const index = getBlockIndex(x, height, z, chunkSize, chunkHeight);
-        if (data[index] === BLOCK.GRASS && Math.random() < 0.01) {
+        if (data[index] === BLOCK.GRASS && Math.random() < 0.02) {
           placeTree(data, chunkSize, chunkHeight, x, height + 1, z);
         }
       }
@@ -259,28 +345,32 @@ interface ResultMessage {
 // Обработчик сообщений
 self.onmessage = (e: MessageEvent<GenerateMessage>) => {
   const { type, id, cx, cz, seed, chunkSize, chunkHeight } = e.data;
-  
+
   if (type === 'generate') {
     // Обновить seed если изменился
     if (seed !== currentSeed) {
       currentSeed = seed;
-      noise2D = createNoiseGenerator(seed);
+      const generators = createNoiseGenerator(seed);
+      noiseC = generators.c;
+      noiseE = generators.e;
+      noiseT = generators.t;
+      noiseH = generators.h;
     }
-    
+
     // Генерация данных чанка
     const data = new Uint8Array(chunkSize * chunkSize * chunkHeight);
     const startX = cx * chunkSize;
     const startZ = cz * chunkSize;
-    
-    // Terrain
+
+    // Terrain (Continentalness + Erosion + Biomes)
     generateTerrain(data, chunkSize, chunkHeight, startX, startZ);
-    
+
     // Ores
     generateOres(data, chunkSize, chunkHeight, startX, startZ);
-    
+
     // Trees
-    generateTrees(data, chunkSize, chunkHeight);
-    
+    generateTrees(data, chunkSize, chunkHeight, startX, startZ);
+
     // Отправить результат (transferable для zero-copy)
     const result: ResultMessage = {
       type: 'result',
@@ -289,8 +379,8 @@ self.onmessage = (e: MessageEvent<GenerateMessage>) => {
       cz,
       data,
     };
-    
-    self.postMessage(result, [data.buffer]);
+
+    self.postMessage(result, [data.buffer] as any);
   }
 };
 
