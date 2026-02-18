@@ -5,6 +5,7 @@ import { CLI } from "../ui/CLI";
 import type { InputState } from "./InputState";
 import { eventManager } from "../core/EventManager";
 import { GameEvents } from "../core/GameEvents";
+import { DevToolsManager } from "../devtools/DevToolsManager";
 
 /**
  * Handles keyboard input for player movement and game controls
@@ -67,6 +68,16 @@ export class KeyboardHandler {
 
 
     if (this.cli.isOpen) return;
+
+    // Блокируем ввод, если открыты DevTools
+    const devToolsManager = DevToolsManager.getInstance();
+    if (devToolsManager?.isVisible()) {
+      if (event.code === "F4") {
+        event.preventDefault();
+        devToolsManager.toggle();
+      }
+      return;
+    }
 
     const inventoryMenu = document.getElementById("inventory-menu")!;
     const isInventoryOpen = inventoryMenu.style.display === "flex";
@@ -142,6 +153,10 @@ export class KeyboardHandler {
         } else if (this.gameState.getGameStarted()) {
           eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, {});
         }
+        break;
+      case "F4":
+        event.preventDefault();
+        DevToolsManager.getInstance()?.toggle();
         break;
     }
   }

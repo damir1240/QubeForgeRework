@@ -29,6 +29,7 @@ import { MouseHandler } from "../input/MouseHandler";
 import { PointerLockHandler } from "../input/PointerLockHandler";
 import { logger } from "../utils/Logger";
 import { GameContext } from "./GameContext";
+import { DevToolsManager } from "../devtools/DevToolsManager";
 
 
 
@@ -56,6 +57,7 @@ export class Game {
   public menus: Menus;
   public devTools: DevTools | null = null;
   public profiler: PerformanceProfiler | null = null;
+  public devToolsManager: DevToolsManager | null = null;
 
   public inputState: InputState;
   public autoSave?: AutoSave;
@@ -116,6 +118,7 @@ export class Game {
     // Initialize Dev Tools (only in dev mode)
     this.devTools = createDevTools();
     this.profiler = createProfiler();
+    this.devToolsManager = DevToolsManager.getInstance(this);
 
     // Initialize Modding System
     this.initMods();

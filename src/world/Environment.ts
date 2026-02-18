@@ -9,6 +9,7 @@ export class Environment {
   private moon: THREE.Mesh;
   private clouds: THREE.InstancedMesh;
   private cloudData: { x: number, y: number, z: number, scaleX: number, scaleZ: number }[] = [];
+  private forceTimeSync: boolean = false;
 
   // Reusable object for cloud matrix updates (avoid GC)
   private cloudDummy: THREE.Object3D = new THREE.Object3D();
@@ -109,12 +110,14 @@ export class Environment {
     return instancedMesh;
   }
 
-  public setTimeToDay() {
+  public setTimeToDay(instant: boolean = false) {
     this.time = this.totalCycleDuration * 0.5; // Noon
+    if (instant) this.forceTimeSync = true;
   }
 
-  public setTimeToNight() {
+  public setTimeToNight(instant: boolean = false) {
     this.time = 0; // Midnight
+    if (instant) this.forceTimeSync = true;
   }
 
   public setShadowsEnabled(enabled: boolean) {
@@ -196,7 +199,7 @@ export class Environment {
       ambientIntensity = 0.1;
     }
 
-    const lerpFactor = delta * 1.0;
+    const lerpFactor = this.forceTimeSync ? 1.0 : (delta * 1.0);
 
     this.scene.background = (this.scene.background as THREE.Color).lerp(targetSky, lerpFactor);
     if (this.scene.fog) {
@@ -205,6 +208,10 @@ export class Environment {
 
     this.dirLight.color.lerp(targetLight, lerpFactor);
     this.ambientLight.intensity = THREE.MathUtils.lerp(this.ambientLight.intensity, ambientIntensity, lerpFactor);
+
+    if (this.forceTimeSync && lerpFactor >= 1.0) {
+      this.forceTimeSync = false;
+    }
 
     // --- Clouds ---
     const dummy = this.cloudDummy;
