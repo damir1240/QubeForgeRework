@@ -53,6 +53,7 @@ export class Renderer {
       Math.min(window.devicePixelRatio, this._isMobile ? 1.5 : 2),
     );
     this.renderer.shadowMap.enabled = !this._isMobile;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.autoClear = false; // Manual clearing for overlay
     document.body.appendChild(this.renderer.domElement);
 
