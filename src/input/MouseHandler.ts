@@ -41,6 +41,7 @@ export class MouseHandler implements InputState {
     else selected = (selected - 1 + 9) % 9;
     this.inventory.setSelectedSlot(selected);
     this.inventoryUI.refresh();
+    this.inventoryUI.emitInventoryChange();
     eventManager.emit(GameEvents.UI_HOTBAR_CHANGE, {});
   };
 
