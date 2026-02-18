@@ -20,19 +20,55 @@ export class Environment {
   private readonly nightDuration: number = 600; // 10 minutes
   private get totalCycleDuration() { return this.dayDuration + this.nightDuration; }
 
-  // Colors
-  private readonly skyColorDay = new THREE.Color(0x87ceeb);
-  private readonly skyColorSunset = new THREE.Color(0xfd5e53);
-  private readonly skyColorNight = new THREE.Color(0x050510);
-
-  private readonly lightColorDay = new THREE.Color(0xffffff);
-  private readonly lightColorSunset = new THREE.Color(0xffaa00);
-  private readonly lightColorNight = new THREE.Color(0x1a1a3a); // Moon light (bluish)
+  // --- Environment States ---
+  private readonly states = [
+    { // 0: Midnight
+      progress: 0.0,
+      sky: new THREE.Color(0x020205),
+      light: new THREE.Color(0x1a1a3a),
+      lightIntensity: 0.1,
+      ambientIntensity: 0.1,
+    },
+    { // 1: Sunrise
+      progress: 0.25,
+      sky: new THREE.Color(0xffa07a), // Light Salmon
+      light: new THREE.Color(0xffccaa),
+      lightIntensity: 0.6,
+      ambientIntensity: 0.4,
+    },
+    { // 2: Midday
+      progress: 0.5,
+      sky: new THREE.Color(0x87ceeb), // Sky Blue
+      light: new THREE.Color(0xffffff),
+      lightIntensity: 1.2,
+      ambientIntensity: 0.7,
+    },
+    { // 3: Sunset
+      progress: 0.75,
+      sky: new THREE.Color(0xff8c00), // Dark Orange
+      light: new THREE.Color(0xffaa77),
+      lightIntensity: 0.6,
+      ambientIntensity: 0.4,
+    },
+    { // 4: Dusk/Night Start
+      progress: 0.85,
+      sky: new THREE.Color(0x101025), // Deep Midnight Blue
+      light: new THREE.Color(0x1a1a3a),
+      lightIntensity: 0.1,
+      ambientIntensity: 0.15,
+    },
+    { // 5: Wrap back to Midnight
+      progress: 1.0,
+      sky: new THREE.Color(0x020205),
+      light: new THREE.Color(0x1a1a3a),
+      lightIntensity: 0.1,
+      ambientIntensity: 0.1,
+    }
+  ];
 
   public get isDay(): boolean {
     const progress = this.time / this.totalCycleDuration;
-    const angle = (progress * Math.PI * 2) - (Math.PI / 2);
-    return Math.sin(angle) > 0;
+    return progress > 0.22 && progress < 0.78;
   }
 
   constructor(scene: THREE.Scene) {
@@ -111,8 +147,11 @@ export class Environment {
   }
 
   public setTimeToDay(instant: boolean = false) {
-    this.time = this.totalCycleDuration * 0.5; // Noon
-    if (instant) this.forceTimeSync = true;
+    this.time = this.totalCycleDuration * 0.5; // Midday
+    if (instant) {
+      this.forceTimeSync = true;
+      // Synchronous update for instant change if needed (optional)
+    }
   }
 
   public setTimeToNight(instant: boolean = false) {
@@ -177,37 +216,45 @@ export class Environment {
       this.dirLight.intensity = Math.max(0, Math.sin(angle + Math.PI)) * 0.2;
     }
 
-    // --- Color Transitions ---
-    let targetSky: THREE.Color;
-    let targetLight: THREE.Color;
-    let ambientIntensity: number;
-
-    if (sunY > 20) {
-      // Day
-      targetSky = this.skyColorDay;
-      targetLight = this.lightColorDay;
-      ambientIntensity = 0.6;
-    } else if (sunY > -20) {
-      // Sunset / Sunrise transition
-      targetSky = this.skyColorSunset;
-      targetLight = this.lightColorSunset;
-      ambientIntensity = 0.3;
-    } else {
-      // Night
-      targetSky = this.skyColorNight;
-      targetLight = this.lightColorNight;
-      ambientIntensity = 0.1;
+    // --- Color & Intensity Interpolation (Keyframe System) ---
+    // 1. Find segment
+    let startIdx = 0;
+    for (let i = 0; i < this.states.length - 1; i++) {
+      if (progress >= this.states[i].progress && progress <= this.states[i + 1].progress) {
+        startIdx = i;
+        break;
+      }
     }
+    const endIdx = startIdx + 1;
+    const s1 = this.states[startIdx];
+    const s2 = this.states[endIdx];
 
-    const lerpFactor = this.forceTimeSync ? 1.0 : (delta * 1.0);
+    // 2. Calculate local t (0..1)
+    const segmentDuration = s2.progress - s1.progress;
+    const localT = segmentDuration > 0 ? (progress - s1.progress) / segmentDuration : 0;
 
+    // We use a separate lerp factor for the "target" properties to maintain smooth visual flow
+    // or respect forceTimeSync
+    const lerpFactor = this.forceTimeSync ? 1.0 : Math.min(1.0, delta * 2.0);
+
+    // 3. Interpolate values
+    const targetSky = new THREE.Color().copy(s1.sky).lerp(s2.sky, localT);
+    const targetLight = new THREE.Color().copy(s1.light).lerp(s2.light, localT);
+    const targetLightIntensity = THREE.MathUtils.lerp(s1.lightIntensity, s2.lightIntensity, localT);
+    const targetAmbientIntensity = THREE.MathUtils.lerp(s1.ambientIntensity, s2.ambientIntensity, localT);
+
+    // 4. Apply to scene
     this.scene.background = (this.scene.background as THREE.Color).lerp(targetSky, lerpFactor);
     if (this.scene.fog) {
       (this.scene.fog as THREE.Fog).color.lerp(targetSky, lerpFactor);
+      // Dynamic fog distance (more fog at night/sunset)
+      const targetFogFar = sunY > 10 ? 100 : 60;
+      (this.scene.fog as THREE.Fog).far = THREE.MathUtils.lerp((this.scene.fog as THREE.Fog).far, targetFogFar, lerpFactor);
     }
 
     this.dirLight.color.lerp(targetLight, lerpFactor);
-    this.ambientLight.intensity = THREE.MathUtils.lerp(this.ambientLight.intensity, ambientIntensity, lerpFactor);
+    this.dirLight.intensity = THREE.MathUtils.lerp(this.dirLight.intensity, targetLightIntensity, lerpFactor);
+    this.ambientLight.intensity = THREE.MathUtils.lerp(this.ambientLight.intensity, targetAmbientIntensity, lerpFactor);
 
     if (this.forceTimeSync && lerpFactor >= 1.0) {
       this.forceTimeSync = false;
