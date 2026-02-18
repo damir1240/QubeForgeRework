@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { Mob, MobState } from "./Mob";
 import { World } from "../world/World";
-import { Player } from "../player/Player";
 
 export class Zombie extends Mob {
   protected readonly walkSpeed: number = 1.75;
@@ -32,7 +31,7 @@ export class Zombie extends Mob {
   ) {
     super(world, scene, x, y, z);
 
-    const texture = world.noiseTexture;
+    const texture = world.noiseTexture!;
     const skinColor = [0.2, 0.6, 0.2]; // Green
     const shirtColor = [0.2, 0.2, 0.8]; // Blue
     const pantsColor = [0.2, 0.2, 0.6]; // Dark Blue

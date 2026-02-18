@@ -10,11 +10,17 @@ let _isMobile: boolean | null = null;
 export function isMobile(): boolean {
     if (_isMobile !== null) return _isMobile;
 
-    _isMobile =
-        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent,
-        ) ||
-        (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+    const ua = navigator.userAgent;
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const isWindows = /Windows/i.test(ua);
+    const isTouch = navigator.maxTouchPoints > 0;
+
+    // На Windows считаем мобильным ТОЛЬКО если это явно мобильный браузер
+    if (isWindows) {
+        _isMobile = isMobileUA;
+    } else {
+        _isMobile = isMobileUA || (isTouch && window.innerWidth < 1024 && window.innerHeight < 1024);
+    }
 
     return _isMobile;
 }

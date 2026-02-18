@@ -9,7 +9,7 @@ type RegistryEntry<T> = T & { numericId: number };
 /**
  * Универсальный регистр для сущностей
  */
-class Registry<T extends { name: string }> {
+class Registry<T extends { name?: string }> {
   private entries: Map<string, RegistryEntry<T>> = new Map();
   private idToKey: Map<number, string> = new Map();
   private nextId: number;
@@ -157,9 +157,9 @@ export function initVanillaRegistry(): void {
     hardness: -1, // Неразрушимый
   });
 
-  BlockRegistry.registerVanilla(BLOCK.WOOD, 'minecraft:wood', {
-    name: 'Wood',
-    texture: 'wood',
+  BlockRegistry.registerVanilla(BLOCK.WOOD, 'minecraft:log', {
+    name: 'Log',
+    texture: { top: 'log_top', side: 'log_side', bottom: 'log_top' },
     hardness: 2,
     tool: 'axe',
   });
@@ -253,6 +253,78 @@ export function initVanillaRegistry(): void {
     stackSize: 1,
     durability: 251,
     toolType: 'pickaxe',
+    toolLevel: 3,
+  });
+
+  // Мечи
+  ItemRegistry.registerVanilla(BLOCK.WOODEN_SWORD, 'minecraft:wooden_sword', {
+    name: 'Wooden Sword',
+    texture: 'wooden_sword',
+    stackSize: 1,
+    durability: 60,
+  });
+  ItemRegistry.registerVanilla(BLOCK.STONE_SWORD, 'minecraft:stone_sword', {
+    name: 'Stone Sword',
+    texture: 'stone_sword',
+    stackSize: 1,
+    durability: 132,
+  });
+  ItemRegistry.registerVanilla(BLOCK.IRON_SWORD, 'minecraft:iron_sword', {
+    name: 'Iron Sword',
+    texture: 'iron_sword',
+    stackSize: 1,
+    durability: 251,
+  });
+
+  // Топоры
+  ItemRegistry.registerVanilla(BLOCK.WOODEN_AXE, 'minecraft:wooden_axe', {
+    name: 'Wooden Axe',
+    texture: 'wooden_axe',
+    stackSize: 1,
+    durability: 60,
+    toolType: 'axe',
+    toolLevel: 1,
+  });
+  ItemRegistry.registerVanilla(BLOCK.STONE_AXE, 'minecraft:stone_axe', {
+    name: 'Stone Axe',
+    texture: 'stone_axe',
+    stackSize: 1,
+    durability: 132,
+    toolType: 'axe',
+    toolLevel: 2,
+  });
+  ItemRegistry.registerVanilla(BLOCK.IRON_AXE, 'minecraft:iron_axe', {
+    name: 'Iron Axe',
+    texture: 'iron_axe',
+    stackSize: 1,
+    durability: 251,
+    toolType: 'axe',
+    toolLevel: 3,
+  });
+
+  // Лопаты
+  ItemRegistry.registerVanilla(BLOCK.WOODEN_SHOVEL, 'minecraft:wooden_shovel', {
+    name: 'Wooden Shovel',
+    texture: 'wooden_shovel',
+    stackSize: 1,
+    durability: 60,
+    toolType: 'shovel',
+    toolLevel: 1,
+  });
+  ItemRegistry.registerVanilla(BLOCK.STONE_SHOVEL, 'minecraft:stone_shovel', {
+    name: 'Stone Shovel',
+    texture: 'stone_shovel',
+    stackSize: 1,
+    durability: 132,
+    toolType: 'shovel',
+    toolLevel: 2,
+  });
+  ItemRegistry.registerVanilla(BLOCK.IRON_SHOVEL, 'minecraft:iron_shovel', {
+    name: 'Iron Shovel',
+    texture: 'iron_shovel',
+    stackSize: 1,
+    durability: 251,
+    toolType: 'shovel',
     toolLevel: 3,
   });
 

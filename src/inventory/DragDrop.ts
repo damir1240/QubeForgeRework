@@ -1,7 +1,6 @@
 import type { InventorySlot } from "./Inventory";
-import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { BLOCK } from "../constants/Blocks";
-import { getBlockColor } from "../utils/BlockColors";
+import { BlockRegistry, ItemRegistry } from "../modding/Registry";
 
 export class DragDrop {
   private draggedItem: InventorySlot | null = null;
@@ -68,18 +67,19 @@ export class DragDrop {
       icon.style.backgroundColor = "";
       icon.className = "block-icon"; // Reset classes
 
-      if (TOOL_TEXTURES[this.draggedItem.id]) {
+      const itemConfig = ItemRegistry.getById(this.draggedItem.id);
+      const blockConfig = BlockRegistry.getById(this.draggedItem.id);
+
+      if (itemConfig) {
+        icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
         icon.classList.add("item-tool");
-        icon.style.backgroundImage = `url(${TOOL_TEXTURES[this.draggedItem.id].dataUrl})`;
-      } else if (this.draggedItem.id === BLOCK.PLANKS) {
-        icon.classList.add("item-planks");
-        icon.style.backgroundColor = getBlockColor(this.draggedItem.id);
-      } else if (this.draggedItem.id === BLOCK.CRAFTING_TABLE) {
-        icon.style.backgroundColor = getBlockColor(this.draggedItem.id);
-        icon.style.backgroundImage = "var(--noise-url)";
-      } else {
-        icon.style.backgroundColor = getBlockColor(this.draggedItem.id);
-        icon.style.backgroundImage = "var(--noise-url)";
+      } else if (blockConfig) {
+        const tex = blockConfig.texture;
+        const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
+        icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
+
+        if (this.draggedItem.id === BLOCK.PLANKS) icon.classList.add("item-planks");
+        else icon.style.backgroundImage += ", var(--noise-url)";
       }
 
       const count = document.createElement("div");

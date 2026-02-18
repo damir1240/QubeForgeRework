@@ -1,11 +1,10 @@
 import * as THREE from "three";
 import { BLOCK } from "../../constants/Blocks";
-import { TextureAtlas } from "../generation/TextureAtlas";
 import { FurnaceManager } from "../../crafting/FurnaceManager";
-import { BlockColors } from "../../constants/BlockColors";
+import { VoxelTextureManager } from "../../core/assets/VoxelTextureManager";
+import { BlockRegistry } from "../../modding/Registry";
 
 export class ChunkMeshBuilder {
-  private noiseTexture: THREE.DataTexture;
 
   // Shared material для всех чанков (экономия памяти)
   private static sharedMaterial: THREE.MeshStandardMaterial | null = null;
@@ -18,12 +17,14 @@ export class ChunkMeshBuilder {
   private slotIdsPool: number[] = [];
 
   constructor() {
-    this.noiseTexture = TextureAtlas.createNoiseTexture();
+    // Использовать текстуру из VoxelTextureManager
+    const textureManager = VoxelTextureManager.getInstance();
+    const atlasTexture = textureManager.getAtlasTexture();
 
     // Создать shared material один раз
     if (!ChunkMeshBuilder.sharedMaterial) {
       ChunkMeshBuilder.sharedMaterial = new THREE.MeshStandardMaterial({
-        map: this.noiseTexture,
+        map: atlasTexture,
         vertexColors: true,
         roughness: 0.8,
         alphaTest: 0.5,
@@ -32,8 +33,12 @@ export class ChunkMeshBuilder {
         side: THREE.DoubleSide,
       });
 
+      // Передаем количество слотов в шейдер
+      const slotCount = textureManager.getSlotCount() || 12;
+
       // Патч шейдера для поддержки Greedy Meshing в Атласе
       ChunkMeshBuilder.sharedMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uSlotCount = { value: slotCount };
         // Vertex Shader
         shader.vertexShader = `
           attribute float aSlotId;
@@ -44,16 +49,17 @@ export class ChunkMeshBuilder {
         shader.vertexShader = shader.vertexShader.replace(
           '#include <common>',
           `#include <common>
-           varying vec2 vMeshUV;`
+           varying vec2 vGreedyUV;`
         ).replace(
           '#include <uv_vertex>',
           `#include <uv_vertex>
-           vMeshUV = uv;
+           vGreedyUV = uv;
            vSlotId = aSlotId;`
         );
 
         // Fragment Shader
         shader.fragmentShader = `
+          uniform float uSlotCount;
           varying float vSlotId;
           ${shader.fragmentShader}
         `;
@@ -61,26 +67,30 @@ export class ChunkMeshBuilder {
         shader.fragmentShader = shader.fragmentShader.replace(
           '#include <common>',
           `#include <common>
-           varying vec2 vMeshUV;`
+           varying vec2 vGreedyUV;`
         ).replace(
           '#include <map_fragment>',
           `
           #ifdef USE_MAP
             // Greedy Meshing Atlas mapping
-            float slotSize = 1.0 / 12.0;
+            float slotSize = 1.0 / uSlotCount;
             
-            // vMeshUV.x contains the local Tiling (0..w)
-            // vSlotId contains the texture Slog Index
+            // Получаем дробную часть для тайлинга (0.0..1.0)
+            vec2 localUV = fract(vGreedyUV);
             
-            float localU = fract(vMeshUV.x);
-            float atlasU = (vSlotId + localU) * slotSize;
-            
-            // Adjust to avoid bleeding (optional, small inset)
-            // But with NearestFilter it should be fine if we stay within bounds
-            
-            // V is standard 0..1 (assuming single row atlas)
-            // If V also tiled (height > 1), we use fract(vMeshUV.y)
-            float atlasV = fract(vMeshUV.y);
+            // Исправляем поведение на самом краю (1.0 -> 0.0 -> 1.0)
+            if (vGreedyUV.x > 0.1 && localUV.x < 0.001) localUV.x = 1.0;
+            if (vGreedyUV.y > 0.1 && localUV.y < 0.001) localUV.y = 1.0;
+
+            // Защитный Clamp для предотвращения швов и "залезания" на соседние слоты
+            // Это решает проблему "тянущихся" пикселей на границах
+            float safeX = clamp(localUV.x, 0.0, 1.0);
+            float safeY = clamp(localUV.y, 0.0, 1.0);
+
+            // Регулировка UV для NearestFilter: небольшое смещение внутрь пикселя
+            // помогает избежать заплывания текстуры (sampling bleeding)
+            float atlasU = (vSlotId + clamp(safeX, 0.001, 0.999)) * slotSize;
+            float atlasV = clamp(safeY, 0.001, 0.999);
             
             vec2 tiledUV = vec2(atlasU, atlasV);
             vec4 texelColor = texture2D( map, tiledUV );
@@ -92,9 +102,12 @@ export class ChunkMeshBuilder {
     }
   }
 
-  public getNoiseTexture(): THREE.DataTexture {
-    return this.noiseTexture;
+  private isBlockTransparent(type: number): boolean {
+    if (type === BLOCK.AIR) return true;
+    const config = BlockRegistry.getById(type);
+    return config?.isTransparent === true;
   }
+
 
   public buildMesh(
     data: Uint8Array,
@@ -135,15 +148,27 @@ export class ChunkMeshBuilder {
             const blockA = (x[d] >= 0) ? this.getBlockAt(data, x[0], x[1], x[2], actualDims) : BLOCK.AIR;
             const blockB = (x[d] < actualDims[d] - 1) ? this.getBlockAt(data, x[0] + q[0], x[1] + q[1], x[2] + q[2], actualDims) : BLOCK.AIR;
 
-            const isOpaqueA = blockA !== BLOCK.AIR;
-            const isOpaqueB = blockB !== BLOCK.AIR;
+            const transA = this.isBlockTransparent(blockA);
+            const transB = this.isBlockTransparent(blockB);
 
-            if (isOpaqueA === isOpaqueB) {
+            if (blockA === blockB) {
               mask[n++] = 0;
-            } else if (isOpaqueA) {
+            } else if (!transA && !transB) {
+              // Оба непрозрачны и разные - отсекаем грань между ними
+              mask[n++] = 0;
+            } else if (!transA) {
+              // A непрозрачен, B прозрачен или воздух - рисуем грань А
               mask[n++] = blockA;
-            } else {
+            } else if (!transB) {
+              // B непрозрачен, A прозрачен или воздух - рисуем грань B
               mask[n++] = -blockB;
+            } else {
+              // Оба прозрачны и разные (например, листва и стекло)
+              // В идеале нужно рисовать обе стороны, но greedy mesher умеет только одну за раз.
+              // Рисуем ту, что не воздух.
+              if (blockA !== BLOCK.AIR) mask[n++] = blockA;
+              else if (blockB !== BLOCK.AIR) mask[n++] = -blockB;
+              else mask[n++] = 0;
             }
           }
         }
@@ -247,18 +272,29 @@ export class ChunkMeshBuilder {
 
     // Цвет и UV
     const side = this.getSideName(dim, isForward);
-    const color = this.getBlockColor(type, side);
-    for (let i = 0; i < 6; i++) this.colorsPool.push(color.r, color.g, color.b);
+    for (let i = 0; i < 6; i++) this.colorsPool.push(1, 1, 1);
 
     // UVs для Greedy Mesh
-    // Передаем количество повторений (tile count) в UV
-    // Шейдер будет использовать fract() для тайлинга
-    const uvCoords = isForward
-      ? [0, 0, w, 0, 0, h, w, 0, w, h, 0, h]
-      : [0, 0, 0, h, w, 0, w, 0, 0, h, w, h];
+    // Определяем 4 угла UV-квадрата
+    let u0 = [0, 0];
+    let u1 = [w, 0];
+    let u2 = [w, h];
+    let u3 = [0, h];
 
-    for (let i = 0; i < uvCoords.length; i += 2) {
-      this.uvsPool.push(uvCoords[i], uvCoords[i + 1]);
+    // Корректируем ориентацию осей, чтобы текстура не была повернута
+    if (dim === 0) { // X-plane: du=Y, dv=Z. Хотим U=Z (h), V=Y (w)
+      u1 = [0, w]; u3 = [h, 0]; u2 = [h, w];
+    } else if (dim === 1) { // Y-plane: du=Z, dv=X. Хотим U=X (h), V=Z (w)
+      u1 = [0, w]; u3 = [h, 0]; u2 = [h, w];
+    }
+    // Z-plane: du=X, dv=Y. Want U=X (w), V=Y (h). По умолчанию u1=[w,0], u3=[0,h] - верно.
+
+    if (isForward) {
+      // Vertices: v0, v1, v3, v1, v2, v3
+      this.uvsPool.push(...u0, ...u1, ...u3, ...u1, ...u2, ...u3);
+    } else {
+      // Vertices: v0, v3, v1, v1, v3, v2 (развернутый порядок для правильной ориентации текстуры)
+      this.uvsPool.push(...u0, ...u3, ...u1, ...u1, ...u3, ...u2);
     }
 
     // Slot IDs
@@ -277,31 +313,41 @@ export class ChunkMeshBuilder {
   }
 
   private getSlotForType(type: number, side: string, worldX: number, worldY: number, worldZ: number): number {
-    if (type === BLOCK.LEAVES) return 1;
-    if (type === BLOCK.PLANKS) return 2;
-    if (type === BLOCK.CRAFTING_TABLE) {
-      if (side === "top") return 3;
-      if (side === "bottom") return 5;
-      return 4;
+    const textureManager = VoxelTextureManager.getInstance();
+    const config = BlockRegistry.getById(type);
+
+    if (!config || !config.texture) return 0;
+
+    let textureName: string;
+
+    if (typeof config.texture === 'string') {
+      textureName = config.texture;
+    } else {
+      // Специальная логика для бревна (так как BLOCK.WOOD в реестре теперь имеет объект)
+      if (type === BLOCK.WOOD) {
+        if (side === "top" || side === "bottom") textureName = (config.texture as any).top;
+        else textureName = (config.texture as any).side;
+      }
+      // Специальная логика для печки (у которой стороны зависят от вращения)
+      else if (type === BLOCK.FURNACE) {
+        const furnace = FurnaceManager.getInstance().getFurnace(worldX, worldY, worldZ);
+        const rot = furnace?.rotation ?? 0;
+        const frontFace = (rot === 0) ? "back" : (rot === 1) ? "right" : (rot === 2) ? "front" : "left";
+
+        if (side === frontFace) textureName = config.texture.side; // Используем side как "переднюю панель"
+        else if (side === "top" || side === "bottom") textureName = config.texture.top;
+        else textureName = config.texture.side; // Или добавить отдельную текстуру для боков печки
+      } else {
+        if (side === "top") textureName = config.texture.top;
+        else if (side === "bottom") textureName = config.texture.bottom;
+        else textureName = config.texture.side;
+      }
     }
-    if (type === BLOCK.COAL_ORE) return 6;
-    if (type === BLOCK.IRON_ORE) return 7;
-    if (type === BLOCK.FURNACE) {
-      if (side === "top") return 10;
-      if (side === "bottom") return 9;
-      const furnace = FurnaceManager.getInstance().getFurnace(worldX, worldY, worldZ);
-      const rot = furnace?.rotation ?? 0;
-      let frontFace = (rot === 0) ? "back" : (rot === 1) ? "right" : (rot === 2) ? "front" : "left";
-      return side === frontFace ? 8 : 9;
-    }
-    return 0; // Grass/Stone default
+
+    return textureManager.getSlot(textureName);
   }
 
 
-
-  private getBlockColor(type: number, side: string): { r: number; g: number; b: number } {
-    return BlockColors.getColorForFace(type, side);
-  }
 
   private createMesh(
     positions: number[],

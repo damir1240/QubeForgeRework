@@ -1,7 +1,6 @@
 import { FurnaceManager } from "./FurnaceManager";
 import { DragDrop } from "../inventory/DragDrop";
-import { TOOL_TEXTURES } from "../constants/ToolTextures";
-import { getBlockColor } from "../utils/BlockColors";
+import { BlockRegistry, ItemRegistry } from "../modding/Registry";
 
 export class FurnaceUI {
   private furnaceManager: FurnaceManager;
@@ -142,9 +141,8 @@ export class FurnaceUI {
     // Arrow (Width/Color)
     const cookRatio =
       furnace.totalCookTime > 0 ? furnace.cookTime / furnace.totalCookTime : 0;
-    this.arrowIcon.style.background = `linear-gradient(to right, #fff ${
-      cookRatio * 100
-    }%, #555 ${cookRatio * 100}%)`;
+    this.arrowIcon.style.background = `linear-gradient(to right, #fff ${cookRatio * 100
+      }%, #555 ${cookRatio * 100}%)`;
     // Clip text to background if needed, or just use overlay
     this.arrowIcon.style.webkitBackgroundClip = "text";
     this.arrowIcon.style.color = "transparent";
@@ -159,15 +157,19 @@ export class FurnaceUI {
     if (item.id !== 0 && item.count > 0) {
       const icon = document.createElement("div");
       icon.classList.add("block-icon");
-      if (TOOL_TEXTURES[item.id]) {
+      const itemConfig = ItemRegistry.getById(item.id);
+      const blockConfig = BlockRegistry.getById(item.id);
+
+      if (itemConfig) {
+        icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
         icon.classList.add("item-tool");
-        icon.style.backgroundImage = `url(${TOOL_TEXTURES[item.id].dataUrl})`;
-      } else if (item.id === 7) {
-        icon.classList.add("item-planks");
-        icon.style.backgroundColor = getBlockColor(item.id);
-      } else {
-        icon.style.backgroundColor = getBlockColor(item.id);
-        icon.style.backgroundImage = "var(--noise-url)";
+      } else if (blockConfig) {
+        const tex = blockConfig.texture;
+        const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
+        icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
+
+        if (item.id === 7) icon.classList.add("item-planks");
+        else icon.style.backgroundImage += ", var(--noise-url)";
       }
 
       const count = document.createElement("div");

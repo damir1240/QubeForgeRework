@@ -22,8 +22,6 @@ import { HealthBar } from "../ui/HealthBar";
 import { Game } from "../core/Game";
 import { BLOCK } from "../constants/Blocks";
 import { BLOCK_NAMES } from "../constants/BlockNames";
-import { TOOL_TEXTURES } from "../constants/ToolTextures";
-import { isItemEntity } from "../utils/ItemUtils";
 import { initDebugControls } from "../utils/DebugUtils";
 import { eventManager } from "../core/EventManager";
 import { GameEvents } from "../core/GameEvents";
@@ -32,13 +30,20 @@ import { EntitySystem } from "../systems/EntitySystem";
 import { InventorySystem } from "../systems/InventorySystem";
 import { UISystem } from "../systems/UISystem";
 import { GameContext } from "../core/GameContext";
+import { VoxelTextureManager } from "../core/assets/VoxelTextureManager";
+import { initVanillaRegistry } from "../modding/Registry";
 
 /**
  * Initializes all game systems and returns references
  */
 export class GameInitializer {
-  static initialize() {
-    // Renderer & Scene
+  static async initialize() {
+    // 0. Registry & Assets (Must be FIRST)
+    initVanillaRegistry();
+    const textureManager = VoxelTextureManager.getInstance();
+    await textureManager.init();
+
+    // 1. Renderer & Scene
     const gameRenderer = new Renderer();
     const gameState = new GameState();
     const isMobile = gameRenderer.getIsMobile();
@@ -98,8 +103,7 @@ export class GameInitializer {
       },
       cursorMesh,
       crackMesh,
-      world.noiseTexture,
-      TOOL_TEXTURES,
+      world.noiseTexture!,
     );
 
     // Mob Manager
@@ -164,9 +168,6 @@ export class GameInitializer {
       if (blockId === BLOCK.FURNACE) {
         const drops = FurnaceManager.getInstance().removeFurnace(x, y, z);
         drops.forEach((d) => {
-          const toolTexture = (TOOL_TEXTURES[d.id] && isItemEntity(d.id))
-            ? TOOL_TEXTURES[d.id].texture
-            : null;
           entities.push(
             new ItemEntity(
               world,
@@ -175,8 +176,6 @@ export class GameInitializer {
               y,
               z,
               d.id,
-              world.noiseTexture,
-              d.id === BLOCK.FURNACE ? null : toolTexture,
               d.count,
             ),
           );
@@ -192,9 +191,6 @@ export class GameInitializer {
         const { shouldDrop, dropId } = BlockDropHandler.getDropInfo(blockId, tid);
 
         if (shouldDrop) {
-          const toolTexture = (TOOL_TEXTURES[dropId] && isItemEntity(dropId))
-            ? TOOL_TEXTURES[dropId].texture
-            : null;
           entities.push(
             new ItemEntity(
               world,
@@ -203,8 +199,6 @@ export class GameInitializer {
               y,
               z,
               dropId,
-              world.noiseTexture,
-              dropId === BLOCK.FURNACE ? null : toolTexture,
             ),
           );
         }

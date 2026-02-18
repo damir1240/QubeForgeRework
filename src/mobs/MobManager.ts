@@ -10,7 +10,6 @@ import { BLOCK } from "../constants/Blocks";
 
 import { Environment } from "../world/Environment";
 import { Player } from "../player/Player";
-import { TOOL_TEXTURES } from "../constants/ToolTextures";
 import { globalEventBus } from "../modding";
 
 export class MobManager {
@@ -64,23 +63,9 @@ export class MobManager {
 
         // Drop Item (Only for non-ChunkError mobs, or general zombies)
         if (mob instanceof WildBoar) {
-            // Drop Meat
-            const count = 1 + Math.floor(Math.random() * 2); // 1-2
-            for(let k=0; k<count; k++) {
-                 this.entities.push(
-                  new ItemEntity(
-                    this.world,
-                    this.scene,
-                    mob.mesh.position.x,
-                    mob.mesh.position.y,
-                    mob.mesh.position.z,
-                    BLOCK.RAW_MEAT,
-                    this.world.noiseTexture,
-                    TOOL_TEXTURES[BLOCK.RAW_MEAT] ? TOOL_TEXTURES[BLOCK.RAW_MEAT].texture : null
-                  ),
-                );
-            }
-        } else if (!(mob instanceof ChunkErrorMob)) {
+          // Drop Meat
+          const count = 1 + Math.floor(Math.random() * 2); // 1-2
+          for (let k = 0; k < count; k++) {
             this.entities.push(
               new ItemEntity(
                 this.world,
@@ -88,10 +73,21 @@ export class MobManager {
                 mob.mesh.position.x,
                 mob.mesh.position.y,
                 mob.mesh.position.z,
-                6, // Loot ID (Leaves placeholder)
-                this.world.noiseTexture,
+                BLOCK.RAW_MEAT,
               ),
             );
+          }
+        } else if (!(mob instanceof ChunkErrorMob)) {
+          this.entities.push(
+            new ItemEntity(
+              this.world,
+              this.scene,
+              mob.mesh.position.x,
+              mob.mesh.position.y,
+              mob.mesh.position.z,
+              6, // Loot ID (Leaves placeholder)
+            ),
+          );
         }
 
         this.despawnMob(i);
@@ -130,7 +126,7 @@ export class MobManager {
         // Spawn passive mobs during day
         this.attemptSpawnPassive(playerPos);
       }
-      
+
       // Attempt to spawn ChunkError (Only at night, 90-150s cooldown)
       if (!isDay && !this.chunkErrorActive && this.chunkErrorCooldown <= 0) {
         // Try to spawn ChunkError in camera view
@@ -142,79 +138,79 @@ export class MobManager {
   }
 
   private attemptSpawnZombie(playerPos: THREE.Vector3) {
-      // Try 10 times
-      for (let i = 0; i < 10; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const dist = 20 + Math.random() * 20;
-          const x = Math.floor(playerPos.x + Math.sin(angle) * dist);
-          const z = Math.floor(playerPos.z + Math.cos(angle) * dist);
-          const y = this.findSurfaceY(x, z);
+    // Try 10 times
+    for (let i = 0; i < 10; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 20;
+      const x = Math.floor(playerPos.x + Math.sin(angle) * dist);
+      const z = Math.floor(playerPos.z + Math.cos(angle) * dist);
+      const y = this.findSurfaceY(x, z);
 
-          if (y !== -1) {
-              const mob = new Zombie(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
-              this.mobs.push(mob);
-              break;
-          }
+      if (y !== -1) {
+        const mob = new Zombie(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
+        this.mobs.push(mob);
+        break;
       }
+    }
   }
 
   private attemptSpawnPassive(playerPos: THREE.Vector3) {
-      // Try 10 times
-      for (let i = 0; i < 10; i++) {
-          const angle = Math.random() * Math.PI * 2;
-          const dist = 20 + Math.random() * 20;
-          const x = Math.floor(playerPos.x + Math.sin(angle) * dist);
-          const z = Math.floor(playerPos.z + Math.cos(angle) * dist);
-          const y = this.findSurfaceY(x, z);
+    // Try 10 times
+    for (let i = 0; i < 10; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 20;
+      const x = Math.floor(playerPos.x + Math.sin(angle) * dist);
+      const z = Math.floor(playerPos.z + Math.cos(angle) * dist);
+      const y = this.findSurfaceY(x, z);
 
-          if (y !== -1) {
-              // Check block below is Grass (ID 1)
-              // We need to check block type. World.ts has getBlock(x,y,z).
-              // Assuming ID 1 is Grass.
-              const blockId = this.world.getBlock(x, y, z);
-              if (blockId === 1) { // Only spawn on grass
-                  const mob = new WildBoar(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
-                  this.mobs.push(mob);
-                  break;
-              }
-          }
+      if (y !== -1) {
+        // Check block below is Grass (ID 1)
+        // We need to check block type. World.ts has getBlock(x,y,z).
+        // Assuming ID 1 is Grass.
+        const blockId = this.world.getBlock(x, y, z);
+        if (blockId === 1) { // Only spawn on grass
+          const mob = new WildBoar(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
+          this.mobs.push(mob);
+          break;
+        }
       }
+    }
   }
 
   private attemptSpawnChunkError(player: Player | THREE.Vector3, playerPos: THREE.Vector3) {
-      // Determine camera direction
-      let dir = new THREE.Vector3(0, 0, -1);
-      if (player instanceof Player) {
-          player.physics.controls.getDirection(dir);
-      }
-      // If we don't have direction (Player param is just Vector3), pick random
-      if (!(player instanceof Player)) {
-          dir.set(Math.random()-0.5, 0, Math.random()-0.5).normalize();
-      }
+    // Determine camera direction
+    let dir = new THREE.Vector3(0, 0, -1);
+    if (player instanceof Player) {
+      player.physics.controls.getDirection(dir);
+    }
+    // If we don't have direction (Player param is just Vector3), pick random
+    if (!(player instanceof Player)) {
+      dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+    }
 
-      // Try to find spot "in camera area" (in front)
-      // Cone of 60 degrees?
-      // Just pick a point in front 20-40 blocks away + random jitter
-      for (let i = 0; i < 5; i++) {
-          // Angle offset (-45 to +45 degrees)
-          const angleOffset = (Math.random() - 0.5) * (Math.PI / 2);
-          
-          // Rotate dir by angleOffset around Y
-          const spawnDir = dir.clone().applyAxisAngle(new THREE.Vector3(0,1,0), angleOffset);
-          const dist = 15 + Math.random() * 25; // 15 to 40 blocks
+    // Try to find spot "in camera area" (in front)
+    // Cone of 60 degrees?
+    // Just pick a point in front 20-40 blocks away + random jitter
+    for (let i = 0; i < 5; i++) {
+      // Angle offset (-45 to +45 degrees)
+      const angleOffset = (Math.random() - 0.5) * (Math.PI / 2);
 
-          const x = Math.floor(playerPos.x + spawnDir.x * dist);
-          const z = Math.floor(playerPos.z + spawnDir.z * dist);
-          
-          const y = this.findSurfaceY(x, z);
-          if (y !== -1) {
-              const mob = new ChunkErrorMob(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
-              this.mobs.push(mob);
-              this.chunkErrorActive = true;
-              // console.log("Spawned ChunkErrorMob");
-              break;
-          }
+      // Rotate dir by angleOffset around Y
+      const spawnDir = dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), angleOffset);
+      const dist = 15 + Math.random() * 25; // 15 to 40 blocks
+
+      const x = Math.floor(playerPos.x + spawnDir.x * dist);
+      const z = Math.floor(playerPos.z + spawnDir.z * dist);
+
+      const y = this.findSurfaceY(x, z);
+      if (y !== -1) {
+        const mob = new ChunkErrorMob(this.world, this.scene, x + 0.5, y + 1, z + 0.5);
+        this.mobs.push(mob);
+        this.chunkErrorActive = true;
+        // console.log("Spawned ChunkErrorMob");
+        break;
       }
+    }
   }
 
   private findSurfaceY(x: number, z: number): number {
@@ -239,27 +235,25 @@ export class MobManager {
 
   private despawnMob(index: number) {
     const mob = this.mobs[index];
-    
-    if (mob instanceof ChunkErrorMob) {
-        this.chunkErrorActive = false;
-        // Respawn timer: 1.5 - 2.5 minutes (90 - 150 seconds)
-        this.chunkErrorCooldown = 90 + Math.random() * 60;
 
-        // Drop Broken Compass
-        if (mob.isDead) {
-             this.entities.push(
-                new ItemEntity(
-                  this.world,
-                  this.scene,
-                  mob.mesh.position.x,
-                  mob.mesh.position.y,
-                  mob.mesh.position.z,
-                  30, // BROKEN_COMPASS
-                  this.world.noiseTexture,
-                  TOOL_TEXTURES[30] ? TOOL_TEXTURES[30].texture : null
-                )
-             );
-        }
+    if (mob instanceof ChunkErrorMob) {
+      this.chunkErrorActive = false;
+      // Respawn timer: 1.5 - 2.5 minutes (90 - 150 seconds)
+      this.chunkErrorCooldown = 90 + Math.random() * 60;
+
+      // Drop Broken Compass
+      if (mob.isDead) {
+        this.entities.push(
+          new ItemEntity(
+            this.world,
+            this.scene,
+            mob.mesh.position.x,
+            mob.mesh.position.y,
+            mob.mesh.position.z,
+            30, // BROKEN_COMPASS
+          )
+        );
+      }
     }
 
     this.scene.remove(mob.mesh);

@@ -1,10 +1,9 @@
 import { Inventory } from "./Inventory";
 import { DragDrop } from "./DragDrop";
-import { TOOL_TEXTURES } from "../constants/ToolTextures";
-import { getBlockColor } from "../utils/BlockColors";
 import { BLOCK_NAMES } from "../constants/BlockNames";
 import { BLOCK } from "../constants/Blocks";
 import { isTool } from "../utils/ItemUtils";
+import { BlockRegistry, ItemRegistry } from "../modding/Registry";
 
 export class InventoryUI {
   private inventory: Inventory;
@@ -301,18 +300,19 @@ export class InventoryUI {
         icon.style.backgroundImage = "";
         icon.style.backgroundColor = "";
 
-        if (TOOL_TEXTURES[slot.id]) {
-          icon.classList.add("item-tool");
-          icon.style.backgroundImage = `url(${TOOL_TEXTURES[slot.id].dataUrl})`;
-        } else if (slot.id === BLOCK.PLANKS) {
-          icon.classList.add("item-planks");
-          icon.style.backgroundColor = getBlockColor(slot.id);
-        } else if (slot.id === BLOCK.CRAFTING_TABLE) {
-          icon.style.backgroundColor = getBlockColor(slot.id);
-          icon.style.backgroundImage = "var(--noise-url)";
-        } else {
-          icon.style.backgroundColor = getBlockColor(slot.id);
-          icon.style.backgroundImage = "var(--noise-url)";
+        const itemConfig = ItemRegistry.getById(slot.id);
+        const blockConfig = BlockRegistry.getById(slot.id);
+
+        if (itemConfig) {
+          icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
+          icon.classList.add("item-tool"); // Generic tool class for scaling
+        } else if (blockConfig) {
+          const tex = blockConfig.texture;
+          const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
+          icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
+
+          if (slot.id === BLOCK.PLANKS) icon.classList.add("item-planks");
+          else icon.style.backgroundImage += ", var(--noise-url)"; // Optional noise for blocks
         }
 
         countEl.innerText = slot.count.toString();

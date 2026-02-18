@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ChunkMeshBuilder } from "./ChunkMeshBuilder";
+import { VoxelTextureManager } from "../../core/assets/VoxelTextureManager";
 
 export type ChunkMesh = {
   mesh: THREE.Mesh;
@@ -15,7 +16,7 @@ export class ChunkMeshManager {
   private chunkSize: number;
   private chunkHeight: number;
   private meshBuilder: ChunkMeshBuilder;
-  
+
   private chunks: Map<string, ChunkMesh> = new Map();
 
   constructor(scene: THREE.Scene, chunkSize: number, chunkHeight: number) {
@@ -64,7 +65,7 @@ export class ChunkMeshManager {
   ): void {
     const key = `${cx},${cz}`;
     const chunk = this.chunks.get(key);
-    
+
     if (chunk) {
       this.scene.remove(chunk.mesh);
       chunk.mesh.geometry.dispose();
@@ -101,7 +102,7 @@ export class ChunkMeshManager {
       const dx = chunk.cx - playerCx;
       const dz = chunk.cz - playerCz;
       const distance = Math.sqrt(dx * dx + dz * dz);
-      
+
       // Ближние чанки рендерятся первыми (меньший renderOrder)
       chunk.mesh.renderOrder = Math.floor(distance);
     }
@@ -117,8 +118,8 @@ export class ChunkMeshManager {
   /**
    * Получить noise текстуру
    */
-  public getNoiseTexture(): THREE.DataTexture {
-    return this.meshBuilder.getNoiseTexture();
+  public getNoiseTexture(): THREE.Texture | null {
+    return VoxelTextureManager.getInstance().getAtlasTexture();
   }
 
   /**

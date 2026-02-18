@@ -1,4 +1,3 @@
-import { initToolTextures } from "./constants/ToolTextures";
 import { GameInitializer } from "./initialization/GameInitializer";
 import { LoadingScreen } from "./initialization/LoadingScreen";
 import { NoiseGenerator } from "./initialization/NoiseGenerator";
@@ -19,14 +18,12 @@ async function initializeGame() {
   const toggles = FeatureToggles.getInstance();
   await toggles.load();
 
-  // Initialize Tool Textures
-  initToolTextures();
 
   // Generate CSS Noise Texture
   NoiseGenerator.generate();
 
   // Initialize all game systems
-  const systems = GameInitializer.initialize();
+  const systems = await GameInitializer.initialize();
 
   // Create InputSystem
   const inputSystem = new InputSystem(

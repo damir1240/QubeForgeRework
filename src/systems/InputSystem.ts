@@ -72,15 +72,13 @@ export class InputSystem {
     public setExecutionDependencies(cli: CLI): void {
         this.cli = cli;
 
-        if (!this.isMobile) {
-            this.keyboardHandler = new KeyboardHandler(
-                this.gameState,
-                this.inputState,
-                this.inventory,
-                this.inventoryUI,
-                cli
-            );
-        }
+        this.keyboardHandler = new KeyboardHandler(
+            this.gameState,
+            this.inputState,
+            this.inventory,
+            this.inventoryUI,
+            cli
+        );
     }
 
     public cleanup(): void {

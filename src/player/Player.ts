@@ -26,8 +26,7 @@ export class Player implements IPlayer {
     onToolUse: (amount: number) => void,
     cursorMesh: THREE.Mesh,
     crackMesh: THREE.Mesh,
-    noiseTexture: THREE.DataTexture,
-    toolTextures: Record<number, { texture: THREE.CanvasTexture; dataUrl: string }>,
+    noiseTexture: THREE.Texture,
   ) {
     this.physics = new PlayerPhysics(controls, world);
 
@@ -50,7 +49,7 @@ export class Player implements IPlayer {
       crackMesh,
     );
 
-    this.hand = new PlayerHand(uiCamera, noiseTexture, toolTextures);
+    this.hand = new PlayerHand(uiCamera, noiseTexture);
   }
 
   public update(delta: number, inputState: InputState) {

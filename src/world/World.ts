@@ -20,7 +20,7 @@ export class World {
     this.chunkManager = new ChunkManager(scene);
   }
 
-  public get noiseTexture(): THREE.DataTexture {
+  public get noiseTexture(): THREE.Texture | null {
     return this.chunkManager.getNoiseTexture();
   }
 

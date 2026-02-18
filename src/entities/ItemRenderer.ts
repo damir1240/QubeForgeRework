@@ -1,26 +1,40 @@
 import * as THREE from "three";
 import { ITEM_ENTITY } from "../constants/GameConstants";
-import { BlockColors } from "../constants/BlockColors";
-import { TextureAtlas } from "../world/generation/TextureAtlas";
-import { BLOCK } from "../constants/Blocks";
+import { VoxelTextureManager } from "../core/assets/VoxelTextureManager";
+import { BlockRegistry, ItemRegistry } from "../modding/Registry";
 
 export class ItemRenderer {
-  public static createMesh(
-    type: number,
-    blockTexture: THREE.DataTexture,
-    itemTexture: THREE.CanvasTexture | null,
-  ): THREE.Mesh {
-    if (itemTexture) {
-      return this.createFlatItem(itemTexture);
+  public static createMesh(type: number): THREE.Mesh {
+    const itemConfig = ItemRegistry.getById(type);
+
+    if (itemConfig) {
+      return this.createFlatItem(type);
     } else {
-      return this.createBlockItem(type, blockTexture);
+      return this.createBlockItem(type);
     }
   }
 
-  private static createFlatItem(texture: THREE.CanvasTexture): THREE.Mesh {
+  private static createFlatItem(type: number): THREE.Mesh {
+    const textureManager = VoxelTextureManager.getInstance();
+    const config = ItemRegistry.getById(type);
+    const textureName = config?.texture || '';
+    const texIdx = textureManager.getItemSlot(textureName);
+    const slotCount = textureManager.getItemSlotCount() || 1;
+    const uvStep = 1.0 / slotCount;
+
     const geometry = new THREE.PlaneGeometry(ITEM_ENTITY.SIZE_FLAT, ITEM_ENTITY.SIZE_FLAT);
+    const uvAttr = geometry.getAttribute("uv");
+    const min = texIdx * uvStep;
+    const max = (texIdx + 1) * uvStep;
+
+    for (let i = 0; i < uvAttr.count; i++) {
+      const u = uvAttr.getX(i);
+      uvAttr.setX(i, min + u * (max - min));
+    }
+    uvAttr.needsUpdate = true;
+
     const material = new THREE.MeshStandardMaterial({
-      map: texture,
+      map: textureManager.getItemAtlasTexture(),
       transparent: true,
       alphaTest: 0.5,
       side: THREE.DoubleSide,
@@ -33,21 +47,18 @@ export class ItemRenderer {
     return mesh;
   }
 
-  private static createBlockItem(
-    type: number,
-    blockTexture: THREE.DataTexture,
-  ): THREE.Mesh {
+  private static createBlockItem(type: number): THREE.Mesh {
     const geometry = new THREE.BoxGeometry(
       ITEM_ENTITY.SIZE_BLOCK,
       ITEM_ENTITY.SIZE_BLOCK,
       ITEM_ENTITY.SIZE_BLOCK,
     );
 
-    this.applyVertexColors(geometry, type);
+    this.applyVertexColors(geometry);
     this.applyUVMapping(geometry, type);
 
     const material = new THREE.MeshStandardMaterial({
-      map: blockTexture,
+      map: VoxelTextureManager.getInstance().getAtlasTexture(),
       vertexColors: true,
       roughness: 0.8,
       alphaTest: 0.5,
@@ -60,15 +71,12 @@ export class ItemRenderer {
     return mesh;
   }
 
-  private static applyVertexColors(geometry: THREE.BufferGeometry, type: number) {
+  private static applyVertexColors(geometry: THREE.BufferGeometry) {
     const colors: number[] = [];
     const count = geometry.attributes.position.count;
 
     for (let i = 0; i < count; i++) {
-      const faceIndex = Math.floor(i / 4);
-      const face = this.getFaceName(faceIndex);
-      const color = BlockColors.getColorForFace(type, face);
-      colors.push(color.r, color.g, color.b);
+      colors.push(1, 1, 1);
     }
 
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
@@ -78,7 +86,9 @@ export class ItemRenderer {
     const uvAttr = geometry.getAttribute("uv");
     if (!uvAttr) return;
 
-    const uvStep = TextureAtlas.getUVStep();
+    const textureManager = VoxelTextureManager.getInstance();
+    const slotCount = textureManager.getSlotCount() || 12;
+    const uvStep = 1.0 / slotCount;
     const uvInset = 0.001;
 
     for (let face = 0; face < 6; face++) {
@@ -97,27 +107,21 @@ export class ItemRenderer {
   }
 
   private static getTextureIndex(type: number, face: number): number {
-    // BoxGeometry faces: 0:Right, 1:Left, 2:Top, 3:Bottom, 4:Front, 5:Back
-    if (type === BLOCK.LEAVES) return 1;
-    if (type === BLOCK.PLANKS) return 2;
-    if (type === BLOCK.CRAFTING_TABLE) {
-      if (face === 2) return 3; // Top
-      if (face === 3) return 5; // Bottom
-      return 4; // Side
-    }
-    if (type === BLOCK.COAL_ORE) return 6;
-    if (type === BLOCK.IRON_ORE) return 7;
-    if (type === BLOCK.FURNACE) {
-      if (face === 2) return 10; // Top
-      if (face === 3) return 9; // Bottom
-      if (face === 4) return 8; // Front
-      return 9; // Side
-    }
-    return 0; // Default noise/stone
-  }
+    const textureManager = VoxelTextureManager.getInstance();
+    const config = BlockRegistry.getById(type);
+    if (!config || !config.texture) return 0;
 
-  private static getFaceName(faceIndex: number): string {
-    const faces = ["right", "left", "top", "bottom", "front", "back"];
-    return faces[faceIndex] || "top";
+    const faceName = ["right", "left", "top", "bottom", "front", "back"][face];
+    let textureName: string;
+
+    if (typeof config.texture === 'string') {
+      textureName = config.texture;
+    } else {
+      if (faceName === "top") textureName = config.texture.top;
+      else if (faceName === "bottom") textureName = config.texture.bottom;
+      else textureName = config.texture.side;
+    }
+
+    return textureManager.getSlot(textureName);
   }
 }

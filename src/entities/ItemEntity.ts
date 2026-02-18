@@ -23,8 +23,6 @@ export class ItemEntity {
     y: number,
     z: number,
     type: number,
-    blockTexture: THREE.DataTexture,
-    itemTexture: THREE.CanvasTexture | null = null,
     count: number = 1,
   ) {
     this.type = type;
@@ -33,7 +31,7 @@ export class ItemEntity {
     this.timeOffset = Math.random() * 100;
 
     // Create mesh
-    this.mesh = ItemRenderer.createMesh(type, blockTexture, itemTexture);
+    this.mesh = ItemRenderer.createMesh(type);
     (this.mesh as any).isItem = true;
     this.mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
 

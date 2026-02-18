@@ -126,6 +126,7 @@ export interface MobConfig {
 }
 
 export interface RecipeConfig {
+  name?: string;
   type: 'shaped' | 'shapeless' | 'smelting';
   pattern?: string[];
   keys?: Record<string, number | string>;

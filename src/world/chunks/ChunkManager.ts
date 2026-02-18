@@ -50,7 +50,7 @@ export class ChunkManager {
     this.loader.setSeed(seed);
   }
 
-  public getNoiseTexture(): THREE.DataTexture {
+  public getNoiseTexture(): THREE.Texture | null {
     return this.loader.getNoiseTexture();
   }
 

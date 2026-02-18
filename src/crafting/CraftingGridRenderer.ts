@@ -1,6 +1,5 @@
 import { CraftingSystem } from "./CraftingSystem";
-import { TOOL_TEXTURES } from "../constants/ToolTextures";
-import { getBlockColor } from "../utils/BlockColors";
+import { BlockRegistry, ItemRegistry } from "../modding/Registry";
 
 export class CraftingGridRenderer {
   private craftingSystem: CraftingSystem;
@@ -37,17 +36,19 @@ export class CraftingGridRenderer {
     icon.classList.remove("item-stick", "item-planks", "item-tool");
     icon.style.backgroundImage = "";
 
-    if (TOOL_TEXTURES[itemId]) {
+    const itemConfig = ItemRegistry.getById(itemId);
+    const blockConfig = BlockRegistry.getById(itemId);
+
+    if (itemConfig) {
+      icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
       icon.classList.add("item-tool");
-      icon.style.backgroundImage = `url(${TOOL_TEXTURES[itemId].dataUrl})`;
-    } else if (itemId === 7) {
-      icon.classList.add("item-planks");
-      icon.style.backgroundColor = getBlockColor(itemId);
-    } else if (itemId === 9) {
-      icon.style.backgroundColor = getBlockColor(itemId);
-    } else {
-      icon.style.backgroundColor = getBlockColor(itemId);
-      icon.style.backgroundImage = "var(--noise-url)";
+    } else if (blockConfig) {
+      const tex = blockConfig.texture;
+      const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
+      icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
+
+      if (itemId === 7) icon.classList.add("item-planks");
+      else icon.style.backgroundImage += ", var(--noise-url)";
     }
   }
 }

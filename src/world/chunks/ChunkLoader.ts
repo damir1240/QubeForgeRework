@@ -22,7 +22,7 @@ export class ChunkLoader {
   private generationQueue: ChunkGenerationQueue;
   private dataManager: ChunkDataManager;
   private meshManager: ChunkMeshManager;
-  
+
   // Batch block updates: накапливаем изменения и применяем раз в N кадров
   private pendingMeshRebuilds: Set<string> = new Set();
   private rebuildCounter: number = 0;
@@ -71,7 +71,7 @@ export class ChunkLoader {
     this.generationQueue.setSeed(seed);
   }
 
-  public getNoiseTexture(): THREE.DataTexture {
+  public getNoiseTexture(): THREE.Texture | null {
     return this.meshManager.getNoiseTexture();
   }
 
@@ -119,7 +119,7 @@ export class ChunkLoader {
         this.getBlock.bind(this),
       );
     });
-    
+
     // Batch rebuild: обработать накопленные изменения
     this.rebuildCounter++;
     if (this.rebuildCounter >= this.REBUILD_INTERVAL && this.pendingMeshRebuilds.size > 0) {
@@ -127,7 +127,7 @@ export class ChunkLoader {
       this.processPendingRebuilds();
     }
   }
-  
+
   /**
    * Обработать накопленные перестройки мешей
    */
@@ -136,7 +136,7 @@ export class ChunkLoader {
       const [cxStr, czStr] = key.split(',');
       const cx = parseInt(cxStr, 10);
       const cz = parseInt(czStr, 10);
-      
+
       const data = this.dataManager.getChunkData(key);
       if (data) {
         this.meshManager.rebuildMesh(
@@ -254,7 +254,7 @@ export class ChunkLoader {
 
     // Синхронная генерация (для спавна игрока)
     this.generationQueue.enqueue(cx, cz, 0);
-    
+
     // Принудительно обработать очередь
     return new Promise((resolve) => {
       const check = () => {
@@ -269,7 +269,7 @@ export class ChunkLoader {
             this.getBlock.bind(this),
           );
         });
-        
+
         if (this.dataManager.hasChunkData(key)) {
           resolve();
         } else {
@@ -286,7 +286,7 @@ export class ChunkLoader {
   public async saveDirtyChunks(): Promise<void> {
     const dirtyChunks = this.dataManager.getDirtyChunks();
     const toSave = new Map<string, Uint8Array>();
-    
+
     for (const key of dirtyChunks) {
       const data = this.dataManager.getChunkData(key);
       if (data) {
