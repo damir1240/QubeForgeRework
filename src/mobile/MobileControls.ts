@@ -97,10 +97,10 @@ export class MobileControls {
         }
       }
 
-      this.game.player.physics.moveForward = dy < -threshold;
-      this.game.player.physics.moveBackward = dy > threshold;
-      this.game.player.physics.moveLeft = dx < -threshold;
-      this.game.player.physics.moveRight = dx > threshold;
+      this.game.inputState.moveForward = dy < -threshold;
+      this.game.inputState.moveBackward = dy > threshold;
+      this.game.inputState.moveLeft = dx < -threshold;
+      this.game.inputState.moveRight = dx > threshold;
     });
 
     const resetStick = (e: TouchEvent) => {
@@ -118,16 +118,16 @@ export class MobileControls {
         this.isDraggingStick = false;
         this.joystickTouchId = null;
         this.joystickStick.style.transform = `translate(-50%, -50%)`;
-        this.game.player.physics.moveForward = false;
-        this.game.player.physics.moveBackward = false;
-        this.game.player.physics.moveLeft = false;
-        this.game.player.physics.moveRight = false;
+        this.game.inputState.moveForward = false;
+        this.game.inputState.moveBackward = false;
+        this.game.inputState.moveLeft = false;
+        this.game.inputState.moveRight = false;
 
         const btnRun = document.getElementById("btn-run");
         if (btnRun) {
           btnRun.style.display = "none";
           btnRun.style.backgroundColor = "";
-          this.game.player.physics.isSprinting = false;
+          this.game.inputState.isSprinting = false;
         }
       }
     };
@@ -139,16 +139,22 @@ export class MobileControls {
   private initButtons() {
     document.getElementById("btn-jump")!.addEventListener("touchstart", (e) => {
       e.preventDefault();
-      this.game.player.physics.jump();
+      this.game.inputState.isJumping = true;
+      // We also need to set it back to false after a delay or on touchend?
+      // Actually InputSystem handles resetting it for keyboard.
+      // For mobile, we should probably set it for one frame or toggle?
+      // PlayerPhysics.update checks inputState.isJumping.
+      // If we keep it true, player will keep jumping.
+      setTimeout(() => { this.game.inputState.isJumping = false; }, 100);
     });
 
     const btnRun = document.getElementById("btn-run");
     if (btnRun) {
       btnRun.addEventListener("touchstart", (e) => {
         e.preventDefault();
-        this.game.player.physics.isSprinting =
-          !this.game.player.physics.isSprinting;
-        btnRun.style.backgroundColor = this.game.player.physics.isSprinting
+        this.game.inputState.isSprinting =
+          !this.game.inputState.isSprinting;
+        btnRun.style.backgroundColor = this.game.inputState.isSprinting
           ? "rgba(255, 100, 0, 0.5)"
           : "";
       });
@@ -321,8 +327,6 @@ export class MobileControls {
         if (this.game.gameState.getPaused()) return;
         if (this.lookTouchId === null) return;
         if (e.cancelable) e.preventDefault();
-
-        const target = e.target as HTMLElement;
         // Skip check? logic was: if touch started elsewhere, we continue dragging.
         // But we need to ensure we are tracking the CORRECT touch.
 
