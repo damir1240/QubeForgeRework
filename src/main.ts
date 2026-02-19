@@ -71,7 +71,6 @@ async function initializeGame() {
   // Inventory Controller
   const inventoryController = new InventoryController(
     systems.controls,
-    systems.player,
     systems.world,
     systems.inventory,
     systems.inventoryUI,
@@ -80,6 +79,7 @@ async function initializeGame() {
     systems.craftingUI,
     systems.furnaceUI,
     systems.isMobile,
+    inputSystem.inputState,
   );
 
   // Set interaction callbacks

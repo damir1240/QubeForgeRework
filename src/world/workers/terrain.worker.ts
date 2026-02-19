@@ -40,7 +40,7 @@ self.onmessage = (e: MessageEvent<GenerateMessage>) => {
 
   if (type === 'generate') {
     // Инициализация генераторов если seed изменился или еще не были созданы
-    if (!terrainGen || seed !== currentSeed) {
+    if (!terrainGen || !structureGen || seed !== currentSeed) {
       currentSeed = seed;
       terrainGen = new TerrainGenerator(seed);
       structureGen = new StructureGenerator(terrainGen);

@@ -226,27 +226,10 @@ export class Menus {
     this.game.renderer.controls.unlock();
     this.crosshair.style.display = "none";
 
-    // PC-specific Cooldown to match browser Pointer Lock security delay (~1.3s)
-    if (!this.game.renderer.getIsMobile()) {
-      // Очистить предыдущий таймаут если есть
-      if (this.resumeTimeout !== null) {
-        clearTimeout(this.resumeTimeout);
-      }
-
-      this.btnResume.style.pointerEvents = "none";
-      this.btnResume.style.opacity = "0.5";
-      this.btnResume.innerText = "Ждите...";
-
-      this.resumeTimeout = window.setTimeout(() => {
-        // Only restore if we are still in the menu
-        if (this.pauseMenu.style.display === "flex") {
-          this.btnResume.style.pointerEvents = "auto";
-          this.btnResume.style.opacity = "1";
-          this.btnResume.innerText = "Продолжить";
-        }
-        this.resumeTimeout = null;
-      }, 1300);
-    }
+    // Ensure button is always enabled
+    this.btnResume.style.pointerEvents = "auto";
+    this.btnResume.style.opacity = "1";
+    this.btnResume.innerText = "Продолжить";
   }
 
   public hidePauseMenu() {

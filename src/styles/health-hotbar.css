@@ -100,41 +100,9 @@
 .block-icon {
     width: 24px;
     height: 24px;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
     image-rendering: pixelated;
-    background-image: var(--noise-url);
-    background-blend-mode: overlay;
-    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
     pointer-events: none;
-}
-
-.block-icon.item-stick {
-    background-image: linear-gradient(
-        45deg,
-        transparent 40%,
-        #654321 40%,
-        #654321 60%,
-        transparent 60%
-    );
-    background-blend-mode: normal;
-    box-shadow: none;
-}
-
-.block-icon.item-planks {
-    background-image:
-        var(--noise-url),
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 20%,
-            rgba(0, 0, 0, 0.3) 20%,
-            rgba(0, 0, 0, 0.3) 25%
-        );
-    background-blend-mode: overlay, normal;
-}
-
-.block-icon.item-tool {
-    background-color: transparent !important;
-    background-blend-mode: normal;
-    box-shadow: none;
 }

@@ -54,8 +54,8 @@ export class CraftingUI {
 
     this.mobileList = isMobile
       ? new MobileCraftingList(craftingSystem, inventory, inventoryUI, () =>
-          this.updateVisuals(),
-        )
+        this.updateVisuals(),
+      )
       : null;
 
     this.init();

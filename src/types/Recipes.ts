@@ -8,10 +8,10 @@ export interface RecipeIngredient {
 }
 
 export interface CraftingRecipe {
-  result: number;
-  count: number;
+  result: { id: number; count: number };
   ingredients?: RecipeIngredient[];
-  pattern?: (number | null)[][];
+  pattern?: string[];
+  keys?: Record<string, number>;
 }
 
 export interface SmeltingRecipe {

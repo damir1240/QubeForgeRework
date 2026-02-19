@@ -1,6 +1,5 @@
 import type { InventorySlot } from "./Inventory";
-import { BLOCK } from "../constants/Blocks";
-import { BlockRegistry, ItemRegistry } from "../modding/Registry";
+import { IconRenderer } from "../ui/IconRenderer";
 
 export class DragDrop {
   private draggedItem: InventorySlot | null = null;
@@ -67,19 +66,12 @@ export class DragDrop {
       icon.style.backgroundColor = "";
       icon.className = "block-icon"; // Reset classes
 
-      const itemConfig = ItemRegistry.getById(this.draggedItem.id);
-      const blockConfig = BlockRegistry.getById(this.draggedItem.id);
-
-      if (itemConfig) {
-        icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
-        icon.classList.add("item-tool");
-      } else if (blockConfig) {
-        const tex = blockConfig.texture;
-        const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
-        icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
-
-        if (this.draggedItem.id === BLOCK.PLANKS) icon.classList.add("item-planks");
-        else icon.style.backgroundImage += ", var(--noise-url)";
+      const iconUrl = IconRenderer.getInstance().getIcon(this.draggedItem.id);
+      if (iconUrl) {
+        icon.style.backgroundImage = `url(${iconUrl})`;
+        icon.style.backgroundSize = "contain";
+        icon.style.backgroundRepeat = "no-repeat";
+        icon.style.backgroundPosition = "center";
       }
 
       const count = document.createElement("div");

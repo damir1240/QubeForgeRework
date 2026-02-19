@@ -1,5 +1,4 @@
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
-import { Player } from "../player/Player";
 import { World } from "../world/World";
 import { Inventory } from "../inventory/Inventory";
 import { InventoryUI } from "../inventory/InventoryUI";
@@ -8,23 +7,46 @@ import { CraftingSystem } from "../crafting/CraftingSystem";
 import { CraftingUI } from "../crafting/CraftingUI";
 import { FurnaceUI } from "../crafting/FurnaceUI";
 import { FurnaceManager } from "../crafting/FurnaceManager";
+import type { InputState } from "../input/InputState";
 
 /**
  * Controls inventory menu opening/closing and related UI state
  */
 export class InventoryController {
+  private controls: PointerLockControls;
+  private world: World;
+  private inventory: Inventory;
+  private inventoryUI: InventoryUI;
+  private dragDrop: DragDrop;
+  private craftingSystem: CraftingSystem;
+  private craftingUI: CraftingUI;
+  private furnaceUI: FurnaceUI;
+  private isMobile: boolean;
+  private inputState: InputState;
+
   constructor(
-    private controls: PointerLockControls,
-    private player: Player,
-    private world: World,
-    private inventory: Inventory,
-    private inventoryUI: InventoryUI,
-    private dragDrop: DragDrop,
-    private craftingSystem: CraftingSystem,
-    private craftingUI: CraftingUI,
-    private furnaceUI: FurnaceUI,
-    private isMobile: boolean,
-  ) {}
+    controls: PointerLockControls,
+    world: World,
+    inventory: Inventory,
+    inventoryUI: InventoryUI,
+    dragDrop: DragDrop,
+    craftingSystem: CraftingSystem,
+    craftingUI: CraftingUI,
+    furnaceUI: FurnaceUI,
+    isMobile: boolean,
+    inputState: InputState,
+  ) {
+    this.controls = controls;
+    this.world = world;
+    this.inventory = inventory;
+    this.inventoryUI = inventoryUI;
+    this.dragDrop = dragDrop;
+    this.craftingSystem = craftingSystem;
+    this.craftingUI = craftingUI;
+    this.furnaceUI = furnaceUI;
+    this.isMobile = isMobile;
+    this.inputState = inputState;
+  }
 
   /**
    * Toggle inventory menu
@@ -46,17 +68,18 @@ export class InventoryController {
       const useCraftingTable = param === true;
       const useFurnace = param === "furnace";
 
-      this.controls.unlock();
-
       // Stop Movement
-      this.player.physics.moveForward = false;
-      this.player.physics.moveBackward = false;
-      this.player.physics.moveLeft = false;
-      this.player.physics.moveRight = false;
-      this.player.physics.isSprinting = false;
+      this.inputState.moveForward = false;
+      this.inputState.moveBackward = false;
+      this.inputState.moveLeft = false;
+      this.inputState.moveRight = false;
+      this.inputState.isSprinting = false;
+      this.inputState.isJumping = false;
 
       inventoryMenu.style.display = "flex";
       crosshair.style.display = "none";
+
+      this.controls.unlock();
 
       if (useFurnace && furnacePos) {
         this.furnaceUI.open(furnacePos.x, furnacePos.y, furnacePos.z);

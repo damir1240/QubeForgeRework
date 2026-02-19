@@ -1,9 +1,8 @@
 import { Inventory } from "./Inventory";
 import { DragDrop } from "./DragDrop";
 import { BLOCK_NAMES } from "../constants/BlockNames";
-import { BLOCK } from "../constants/Blocks";
 import { isTool } from "../utils/ItemUtils";
-import { BlockRegistry, ItemRegistry } from "../modding/Registry";
+import { IconRenderer } from "../ui/IconRenderer";
 
 export class InventoryUI {
   private inventory: Inventory;
@@ -300,19 +299,12 @@ export class InventoryUI {
         icon.style.backgroundImage = "";
         icon.style.backgroundColor = "";
 
-        const itemConfig = ItemRegistry.getById(slot.id);
-        const blockConfig = BlockRegistry.getById(slot.id);
-
-        if (itemConfig) {
-          icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
-          icon.classList.add("item-tool"); // Generic tool class for scaling
-        } else if (blockConfig) {
-          const tex = blockConfig.texture;
-          const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
-          icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
-
-          if (slot.id === BLOCK.PLANKS) icon.classList.add("item-planks");
-          else icon.style.backgroundImage += ", var(--noise-url)"; // Optional noise for blocks
+        const iconUrl = IconRenderer.getInstance().getIcon(slot.id);
+        if (iconUrl) {
+          icon.style.backgroundImage = `url(${iconUrl})`;
+          icon.style.backgroundSize = "contain";
+          icon.style.backgroundRepeat = "no-repeat";
+          icon.style.backgroundPosition = "center";
         }
 
         countEl.innerText = slot.count.toString();

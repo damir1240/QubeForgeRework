@@ -1,5 +1,5 @@
 import { CraftingSystem } from "./CraftingSystem";
-import { BlockRegistry, ItemRegistry } from "../modding/Registry";
+import { IconRenderer } from "../ui/IconRenderer";
 
 export class CraftingGridRenderer {
   private craftingSystem: CraftingSystem;
@@ -33,22 +33,14 @@ export class CraftingGridRenderer {
   }
 
   private applyIconStyle(icon: HTMLElement, itemId: number) {
-    icon.classList.remove("item-stick", "item-planks", "item-tool");
     icon.style.backgroundImage = "";
 
-    const itemConfig = ItemRegistry.getById(itemId);
-    const blockConfig = BlockRegistry.getById(itemId);
-
-    if (itemConfig) {
-      icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
-      icon.classList.add("item-tool");
-    } else if (blockConfig) {
-      const tex = blockConfig.texture;
-      const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
-      icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
-
-      if (itemId === 7) icon.classList.add("item-planks");
-      else icon.style.backgroundImage += ", var(--noise-url)";
+    const iconUrl = IconRenderer.getInstance().getIcon(itemId);
+    if (iconUrl) {
+      icon.style.backgroundImage = `url(${iconUrl})`;
+      icon.style.backgroundSize = "contain";
+      icon.style.backgroundRepeat = "no-repeat";
+      icon.style.backgroundPosition = "center";
     }
   }
 }

@@ -118,6 +118,7 @@ export class GameInitializer {
     context.register('entitySystem', entitySystem);
     context.register('inventorySystem', inventorySystem);
     context.register('uiSystem', uiSystem);
+    context.register('eventManager', eventManager);
 
     // UI Scene Lighting
     const uiScene = gameRenderer.uiScene;

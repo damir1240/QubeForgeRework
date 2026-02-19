@@ -1,6 +1,6 @@
 import { FurnaceManager } from "./FurnaceManager";
 import { DragDrop } from "../inventory/DragDrop";
-import { BlockRegistry, ItemRegistry } from "../modding/Registry";
+import { IconRenderer } from "../ui/IconRenderer";
 
 export class FurnaceUI {
   private furnaceManager: FurnaceManager;
@@ -157,19 +157,12 @@ export class FurnaceUI {
     if (item.id !== 0 && item.count > 0) {
       const icon = document.createElement("div");
       icon.classList.add("block-icon");
-      const itemConfig = ItemRegistry.getById(item.id);
-      const blockConfig = BlockRegistry.getById(item.id);
-
-      if (itemConfig) {
-        icon.style.backgroundImage = `url(/assets/qubeforge/textures/items/${itemConfig.texture}.png)`;
-        icon.classList.add("item-tool");
-      } else if (blockConfig) {
-        const tex = blockConfig.texture;
-        const texName = typeof tex === 'string' ? tex : (tex.top || tex.side || 'dirt');
-        icon.style.backgroundImage = `url(/assets/qubeforge/textures/blocks/${texName}.png)`;
-
-        if (item.id === 7) icon.classList.add("item-planks");
-        else icon.style.backgroundImage += ", var(--noise-url)";
+      const iconUrl = IconRenderer.getInstance().getIcon(item.id);
+      if (iconUrl) {
+        icon.style.backgroundImage = `url(${iconUrl})`;
+        icon.style.backgroundSize = "contain";
+        icon.style.backgroundRepeat = "no-repeat";
+        icon.style.backgroundPosition = "center";
       }
 
       const count = document.createElement("div");
