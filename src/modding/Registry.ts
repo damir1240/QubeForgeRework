@@ -118,6 +118,7 @@ export const RecipeRegistry = new Registry<RecipeConfig>('recipes', 1000);
 /**
  * Инициализация ванильных блоков
  */
+
 export function initVanillaRegistry(): void {
   // Блоки
   BlockRegistry.registerVanilla(BLOCK.AIR, 'minecraft:air', {
