@@ -5,9 +5,12 @@ import { ItemLifecycle } from "./ItemLifecycle";
 import { ItemRenderer } from "./ItemRenderer";
 import { ITEM_ENTITY } from "../constants/GameConstants";
 
-export class ItemEntity {
+import type { IEntity } from "./IEntity";
+
+export class ItemEntity implements IEntity {
+  public id: string;
   public mesh: THREE.Mesh;
-  public type: number;
+  public type: number; // Item ID
   public count: number;
   public isDead = false;
 
@@ -25,6 +28,7 @@ export class ItemEntity {
     type: number,
     count: number = 1,
   ) {
+    this.id = self.crypto?.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).substring(2, 11);
     this.type = type;
     this.count = count;
     this.scene = scene;
@@ -55,6 +59,17 @@ export class ItemEntity {
 
     // Rotation animation
     this.mesh.rotation.y = time * ITEM_ENTITY.ROTATION_SPEED + this.timeOffset;
+  }
+
+  public getPosition(): THREE.Vector3 {
+    return this.mesh.position;
+  }
+
+  get position() { return this.mesh.position; }
+  get rotation() { return this.mesh.rotation; }
+
+  public getMesh(): THREE.Object3D {
+    return this.mesh;
   }
 
   public dispose() {

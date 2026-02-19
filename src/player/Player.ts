@@ -10,11 +10,17 @@ import { MathUtils } from "three";
 import type { IPlayer } from "./IPlayer";
 import type { InputState } from "../input/InputState";
 
-export class Player implements IPlayer {
+import { BaseEntity } from "../entities/BaseEntity";
+import { EntityMesh } from "../entities/EntityMesh";
+
+export class Player extends BaseEntity implements IPlayer {
   public physics: PlayerPhysics;
   public health: PlayerHealth;
   public combat: PlayerCombat;
   public hand: PlayerHand;
+  public mesh: EntityMesh;
+
+  private controls: PointerLockControls;
 
   constructor(
     controls: PointerLockControls,
@@ -28,6 +34,10 @@ export class Player implements IPlayer {
     crackMesh: THREE.Mesh,
     noiseTexture: THREE.Texture,
   ) {
+    // We don't pass controls.object as existingObject because we want separate body rotation
+    super(scene);
+    this.controls = controls;
+
     this.physics = new PlayerPhysics(controls, world);
 
     this.health = new PlayerHealth(
@@ -50,10 +60,41 @@ export class Player implements IPlayer {
     );
 
     this.hand = new PlayerHand(uiCamera, noiseTexture);
+
+    // Initialize EntityMesh for the player model
+    this.mesh = new EntityMesh(this.object);
+    this.mesh.loadModel('/assets/qubeforge/models/player.gltf')
+      .then(() => {
+        const model = this.mesh.getModel();
+        if (model) {
+          // The player model's root is this.object
+          // Hide it from first-person view (standard camera sees layer 0, we move model to layer 1)
+          model.traverse((child) => {
+            child.layers.set(1);
+          });
+        }
+      });
   }
 
-  public update(delta: number, inputState: InputState) {
+  // Implementation of BaseEntity.update
+  public update(_delta: number, _time: number): void {
+    // Sychronize body with camera position
+    const camPos = this.controls.object.position;
+    this.object.position.set(camPos.x, camPos.y - 1.6, camPos.z); // Offset to feet
+
+    // Synchronize body Y rotation with camera Y rotation
+    const camEuler = new THREE.Euler().setFromQuaternion(this.controls.object.quaternion, 'YXZ');
+    this.object.rotation.y = camEuler.y;
+
+    this.mesh.update(_delta);
+  }
+
+  public handleUpdate(delta: number, inputState: InputState) {
     this.physics.update(delta, inputState);
+
+    // Also update entity logic (syncing visual mesh)
+    this.update(delta, delta); // We don't have global time here, but delta is enough for animation mixer
+
 
     // FOV Effect
     const baseFov = 75;

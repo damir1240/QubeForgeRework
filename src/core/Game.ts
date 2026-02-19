@@ -243,7 +243,7 @@ export class Game {
 
     // Player Update (Physics & Hand)
     this.profiler?.startMeasure('player-update');
-    this.player.update(delta, this.inputState);
+    this.player.handleUpdate(delta, this.inputState);
     this.profiler?.endMeasure('player-update');
 
     // Block Breaking

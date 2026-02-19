@@ -16,6 +16,7 @@ import { BlockBreaking } from "../blocks/BlockBreaking";
 import { BlockInteraction } from "../blocks/BlockInteraction";
 import { BlockDropHandler } from "../blocks/BlockDropHandler";
 import { ItemEntity } from "../entities/ItemEntity";
+import type { IEntity } from "../entities/IEntity";
 import { HotbarLabel } from "../ui/HotbarLabel";
 import { HealthBar } from "../ui/HealthBar";
 import { Game } from "../core/Game";
@@ -76,7 +77,7 @@ export class GameInitializer {
     const cursorMesh = blockCursor.getMesh();
 
     // Entities
-    const entities: ItemEntity[] = [];
+    const entities: IEntity[] = [];
 
     // Block Breaking with drop logic
     const blockBreaking = new BlockBreaking(
@@ -88,7 +89,6 @@ export class GameInitializer {
     );
     const crackMesh = blockBreaking.getCrackMesh();
 
-    // Player
     // Player
     const player = new Player(
       controls,
@@ -104,8 +104,7 @@ export class GameInitializer {
       crackMesh,
       world.noiseTexture!,
     );
-
-
+    entities.push(player);
 
     // Systems
     const entitySystem = new EntitySystem(entities, player);
