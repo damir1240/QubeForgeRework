@@ -343,5 +343,20 @@ export function initVanillaRegistry(): void {
     foodValue: 6,
   });
 
+  // Мобы
+  MobRegistry.register('minecraft:pig', {
+    name: 'Pig',
+    health: 10,
+    damage: 0,
+    speed: 2.0,
+    width: 0.9,
+    height: 0.9,
+    hostile: false,
+    ai: 'passive',
+    modelUrl: '/assets/qubeforge/models/pig.gltf',
+    textureUrl: '/assets/qubeforge/textures/mobs/pig.png',
+    drops: [{ id: BLOCK.RAW_MEAT, count: 1 }],
+  });
+
   console.log('[Registry] Vanilla registry initialized');
 }

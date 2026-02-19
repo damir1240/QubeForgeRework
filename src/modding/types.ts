@@ -122,7 +122,8 @@ export interface MobConfig {
     onBlocks?: number[];
   };
   ai?: 'passive' | 'neutral' | 'hostile' | 'custom';
-  texture?: string;
+  textureUrl?: string;
+  modelUrl?: string;
 }
 
 export interface RecipeConfig {

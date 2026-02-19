@@ -63,7 +63,7 @@ export class Player extends BaseEntity implements IPlayer {
 
     // Initialize EntityMesh for the player model
     this.mesh = new EntityMesh(this.object);
-    this.mesh.loadModel('/assets/qubeforge/models/player.gltf')
+    this.mesh.loadModel('/assets/qubeforge/models/player.gltf', '/assets/qubeforge/textures/mobs/player.png')
       .then(() => {
         const model = this.mesh.getModel();
         if (model) {

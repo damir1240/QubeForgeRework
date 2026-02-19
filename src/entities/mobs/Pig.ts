@@ -4,6 +4,7 @@ import { EntityMesh } from '../EntityMesh';
 import { EntityPhysics } from '../EntityPhysics';
 import { World } from '../../world/World';
 import { AIMovement } from '../AIMovement';
+import { MobRegistry } from '../../modding/Registry';
 
 export class Pig extends BaseEntity {
     private meshContainer: EntityMesh;
@@ -16,7 +17,13 @@ export class Pig extends BaseEntity {
     constructor(scene: THREE.Scene, world: World) {
         super(scene);
 
-        this.physics = new EntityPhysics(world, this.object, 0.9, 0.9);
+        const config = MobRegistry.get('minecraft:pig');
+        const width = config?.width || 0.9;
+        const height = config?.height || 0.9;
+        const modelUrl = config?.modelUrl || '/assets/qubeforge/models/pig.gltf';
+        const textureUrl = config?.textureUrl || '/assets/qubeforge/textures/mobs/pig.png';
+
+        this.physics = new EntityPhysics(world, this.object, width, height);
         this.meshContainer = new EntityMesh(this.object);
 
         // Initialize Auto-Jump behavior
@@ -26,7 +33,7 @@ export class Pig extends BaseEntity {
             maxStepHeight: 1
         });
 
-        this.meshContainer.loadModel('/assets/qubeforge/models/pig.gltf')
+        this.meshContainer.loadModel(modelUrl, textureUrl)
             .then(() => {
                 // Ensure correct initial scale if needed
             });
@@ -43,9 +50,8 @@ export class Pig extends BaseEntity {
         if (speed > 0.1) {
             this.meshContainer.playAnimation('Walking');
         } else {
-            // If we have an Idle animation, we could play it, 
-            // but for now let's just properly stop the walking one.
-            this.meshContainer.stopAnimation(0.5);
+            // Мгновенная остановка анимации при прекращении движения
+            this.meshContainer.stopAnimation(0);
         }
 
         // Object look direction (Fixing "walking backward" by adding Math.PI)
@@ -58,18 +64,21 @@ export class Pig extends BaseEntity {
     private updateWander(delta: number): void {
         this.wanderTimer -= delta;
         if (this.wanderTimer <= 0) {
-            // Pick new direction or idle
-            if (Math.random() > 0.3) {
+            // Шанс 50/50: либо идем, либо стоим (было 70/30 в пользу ходьбы)
+            if (Math.random() > 0.5) {
                 const angle = Math.random() * Math.PI * 2;
                 this.targetDir.set(Math.cos(angle), 0, Math.sin(angle));
-                this.wanderTimer = 2 + Math.random() * 5;
+                // Бродим от 4 до 10 секунд
+                this.wanderTimer = 4 + Math.random() * 6;
             } else {
+                // Стоим на месте
                 this.targetDir.set(0, 0, 0);
-                this.wanderTimer = 1 + Math.random() * 3;
+                // Стоим от 2 до 5 секунд
+                this.wanderTimer = 2 + Math.random() * 3;
             }
         }
 
-        const moveSpeed = 2.0;
+        const moveSpeed = 1.5; // Чуть замедлим (было 2.0)
         this.physics.velocity.x = this.targetDir.x * moveSpeed;
         this.physics.velocity.z = this.targetDir.z * moveSpeed;
     }
