@@ -119,7 +119,7 @@ export class Menus {
         // Safety timeout: reset flag if lock fails (rare but possible)
         setTimeout(() => {
           this.game.gameState.setIsResuming(false);
-        }, 1000);
+        }, 100);
       }
     });
     this.btnSettingsMain.addEventListener("click", () =>
@@ -172,7 +172,7 @@ export class Menus {
         // Safety timeout: reset flag if lock fails (rare but possible)
         setTimeout(() => {
           this.game.gameState.setIsResuming(false);
-        }, 1000);
+        }, 100);
       }
     });
     this.btnSettingsMain.addEventListener("click", () =>

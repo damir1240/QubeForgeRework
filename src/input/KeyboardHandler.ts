@@ -148,11 +148,25 @@ export class KeyboardHandler {
         }
         break;
       case "Escape":
-        const invMenu = document.getElementById("inventory-menu")!;
-        if (invMenu.style.display === "flex") {
-          eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
-        } else if (this.gameState.getGameStarted()) {
-          eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, {});
+        {
+          event.preventDefault();
+          event.stopPropagation();
+          
+          const invMenu = document.getElementById("inventory-menu")!;
+          const isInvOpen = invMenu.style.display === "flex";
+
+          // If inventory/crafting/furnace GUI is open, just close it without opening pause menu
+          if (isInvOpen) {
+            // Set flag BEFORE emitting event to prevent race condition
+            this.gameState.setIsResuming(true);
+            eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
+            return; // Important: return here to prevent pause menu from opening
+          }
+          
+          // Only open pause menu if no GUI is open
+          if (this.gameState.getGameStarted()) {
+            eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, {});
+          }
         }
         break;
       case "F4":

@@ -3,6 +3,45 @@ import { BLOCK } from "../constants/Blocks";
 import { BlockRegistry, ItemRegistry } from "../modding/Registry";
 import { ItemMeshFactory } from "../utils/ItemMeshFactory";
 
+// ============================================
+// НАСТРОЙКИ ПОЗИЦИИ И ПОВОРОТА ПРЕДМЕТОВ В РУКЕ
+// ============================================
+// Здесь можно легко настроить как предметы выглядят в руке
+// Все углы указаны в ГРАДУСАХ (не радианах!)
+
+const ITEM_HAND_CONFIG = {
+  // Настройки для инструментов (мечи, кирки, топоры и т.д.)
+  items: {
+    rotation: {
+      x: -90,    // Наклон вверх/вниз (положительное = вниз, отрицательное = вверх)
+      y: 270,  // Поворот влево/вправо (0 = прямо, 90 = влево, 180 = назад, 270 = вправо)
+      z: -20     // Крен влево/вправо
+    },
+    position: {
+      x: 0,     // Влево (-) / Вправо (+)
+      y: 0.1,  // Вниз (-) / Вверх (+)
+      z: 0.15    // Ближе к камере (-) / Дальше от камеры (+)
+    }
+  },
+  
+  // Настройки для блоков (земля, камень и т.д.)
+  blocks: {
+    rotation: {
+      x: -22.5,  // Наклон вверх/вниз
+      y: 45,     // Поворот влево/вправо
+      z: 0       // Крен влево/вправо
+    },
+    position: {
+      x: 0,     // Влево (-) / Вправо (+)
+      y: -0.1,  // Вниз (-) / Вверх (+)
+      z: -0.3   // Ближе к камере (-) / Дальше от камеры (+)
+    }
+  }
+};
+
+// Вспомогательная функция для конвертации градусов в радианы
+const degreesToRadians = (degrees: number): number => (degrees * Math.PI) / 180;
+
 export class PlayerHand {
   private camera: THREE.Camera;
   private handGroup: THREE.Group;
@@ -75,8 +114,14 @@ export class PlayerHand {
     if (itemConfig) {
       this.currentMesh = ItemMeshFactory.createItemMesh(id);
       if (this.currentMesh) {
-        this.currentMesh.scale.set(1.5, 1.5, 1.5);
-        this.currentMesh.position.set(0, 0.2, 0);
+        // Применяем настройки из конфига для инструментов
+        const cfg = ITEM_HAND_CONFIG.items;
+        this.currentMesh.rotation.set(
+          degreesToRadians(cfg.rotation.x),
+          degreesToRadians(cfg.rotation.y),
+          degreesToRadians(cfg.rotation.z)
+        );
+        this.currentMesh.position.set(cfg.position.x, cfg.position.y, cfg.position.z);
 
         if (id === BLOCK.BROKEN_COMPASS) {
           const existingNeedle = this.currentMesh.getObjectByName("needle") as THREE.Mesh;
@@ -96,9 +141,14 @@ export class PlayerHand {
     } else if (blockConfig) {
       this.currentMesh = ItemMeshFactory.createBlockMesh(id, this.blockTexture);
       if (this.currentMesh) {
-        // Block Orientation in hand
-        this.currentMesh.rotation.y = Math.PI / 4;
-        this.currentMesh.position.set(0, 0, 0);
+        // Применяем настройки из конфига для блоков
+        const cfg = ITEM_HAND_CONFIG.blocks;
+        this.currentMesh.rotation.set(
+          degreesToRadians(cfg.rotation.x),
+          degreesToRadians(cfg.rotation.y),
+          degreesToRadians(cfg.rotation.z)
+        );
+        this.currentMesh.position.set(cfg.position.x, cfg.position.y, cfg.position.z);
       }
     }
 

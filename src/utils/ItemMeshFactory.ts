@@ -84,15 +84,21 @@ export class ItemMeshFactory {
             return data[(ty * 16 + tx) * 4 + 3] > 0;
         };
 
+        // Helper function to convert sRGB to Linear color space
+        const sRGBToLinear = (c: number): number => {
+            return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+
         for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
                 const idx = (y * 16 + x) * 4;
                 const a = data[idx + 3];
                 if (a === 0) continue;
 
-                const r = data[idx] / 255;
-                const g = data[idx + 1] / 255;
-                const b = data[idx + 2] / 255;
+                // Convert sRGB texture colors to linear space for vertex colors
+                const r = sRGBToLinear(data[idx] / 255);
+                const g = sRGBToLinear(data[idx + 1] / 255);
+                const b = sRGBToLinear(data[idx + 2] / 255);
 
                 const px = offsetX + x * pixelSize;
                 const py = offsetY + (size - 1 - y) * pixelSize;

@@ -80,6 +80,7 @@ async function initializeGame() {
     systems.furnaceUI,
     systems.isMobile,
     inputSystem.inputState,
+    systems.gameState,
   );
 
   // Set interaction callbacks

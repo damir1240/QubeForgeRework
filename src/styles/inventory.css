@@ -65,3 +65,9 @@
     border: 1px solid #555;
     white-space: nowrap;
 }
+
+.slot-count {
+    font-family: 'Press Start 2P', cursive;
+    color: white;
+    text-shadow: 1px 1px 0 #000;
+}

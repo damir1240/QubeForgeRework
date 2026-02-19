@@ -122,10 +122,10 @@ export class GameInitializer {
 
     // UI Scene Lighting
     const uiScene = gameRenderer.uiScene;
-    const uiLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    const uiLight = new THREE.DirectionalLight(0xffffff, 0.8);
     uiLight.position.set(1, 1, 1);
     uiScene.add(uiLight);
-    const uiAmbient = new THREE.AmbientLight(0xffffff, 0.5);
+    const uiAmbient = new THREE.AmbientLight(0xffffff, 0.4);
     uiScene.add(uiAmbient);
 
     // Crafting System

@@ -8,6 +8,7 @@ import { CraftingUI } from "../crafting/CraftingUI";
 import { FurnaceUI } from "../crafting/FurnaceUI";
 import { FurnaceManager } from "../crafting/FurnaceManager";
 import type { InputState } from "../input/InputState";
+import { GameState } from "../core/GameState";
 
 /**
  * Controls inventory menu opening/closing and related UI state
@@ -23,6 +24,7 @@ export class InventoryController {
   private furnaceUI: FurnaceUI;
   private isMobile: boolean;
   private inputState: InputState;
+  private gameState: GameState;
 
   constructor(
     controls: PointerLockControls,
@@ -35,6 +37,7 @@ export class InventoryController {
     furnaceUI: FurnaceUI,
     isMobile: boolean,
     inputState: InputState,
+    gameState: GameState,
   ) {
     this.controls = controls;
     this.world = world;
@@ -46,6 +49,7 @@ export class InventoryController {
     this.furnaceUI = furnaceUI;
     this.isMobile = isMobile;
     this.inputState = inputState;
+    this.gameState = gameState;
   }
 
   /**
@@ -140,9 +144,22 @@ export class InventoryController {
         document.getElementById("mobile-actions")!.style.display = "flex";
       }
 
-      this.controls.lock();
+      // Close UI first
       inventoryMenu.style.display = "none";
       crosshair.style.display = "block";
+
+      // Prevent pause menu from opening due to "unlock" event race condition
+      // Only set flag if not already set (KeyboardHandler may have set it)
+      if (!this.gameState.getIsResuming()) {
+        this.gameState.setIsResuming(true);
+      }
+      
+      this.controls.lock();
+
+      // Reset flag after a short delay
+      setTimeout(() => {
+        this.gameState.setIsResuming(false);
+      }, 500);
 
       // Return dragged item to inventory
       const dragged = this.dragDrop.getDraggedItem();
