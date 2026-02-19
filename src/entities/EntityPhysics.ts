@@ -21,6 +21,13 @@ export class EntityPhysics {
         this.height = height;
     }
 
+    public jump(force: number = 7.0): void {
+        if (this.isOnGround) {
+            this.velocity.y = force;
+            this.isOnGround = false;
+        }
+    }
+
     public update(delta: number): void {
         // Apply Gravity
         if (!this.isOnGround) {

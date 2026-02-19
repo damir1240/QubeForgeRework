@@ -71,6 +71,13 @@ export class EntityMesh {
         this.currentAction = action;
     }
 
+    public stopAnimation(fadeTime: number = 0.2): void {
+        if (this.currentAction) {
+            this.currentAction.fadeOut(fadeTime);
+            this.currentAction = null;
+        }
+    }
+
     public update(delta: number): void {
         if (this.mixer) {
             this.mixer.update(delta);

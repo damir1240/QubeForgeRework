@@ -32,6 +32,9 @@ import { UISystem } from "../systems/UISystem";
 import { GameContext } from "../core/GameContext";
 import { VoxelTextureManager } from "../core/assets/VoxelTextureManager";
 import { initVanillaRegistry } from "../modding/Registry";
+import { SpawnRegistry } from "../systems/SpawnRegistry";
+import { SpawnSystem } from "../systems/SpawnSystem";
+import { Pig } from "../entities/mobs/Pig";
 
 /**
  * Initializes all game systems and returns references
@@ -108,11 +111,27 @@ export class GameInitializer {
 
     // Systems
     const entitySystem = new EntitySystem(entities, player);
+    const spawnSystem = new SpawnSystem(scene, world, entities, player);
+
+    // Register Pig spawn rule
+    SpawnRegistry.register({
+      mobId: 'pig',
+      mobClass: Pig,
+      weight: 1.0,
+      minGroupSize: 2,
+      maxGroupSize: 4,
+      spawnInterval: 10,
+      maxTotal: 10,
+      spawnRadius: 40,
+      minRadius: 15
+    });
+
     const inventorySystem = new InventorySystem(inventory, inventoryUI);
     const uiSystem = new UISystem(healthBar, damageOverlay);
 
     const context = GameContext.getInstance();
     context.register('entitySystem', entitySystem);
+    context.register('spawnSystem', spawnSystem);
     context.register('inventorySystem', inventorySystem);
     context.register('uiSystem', uiSystem);
     context.register('eventManager', eventManager);

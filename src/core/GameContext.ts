@@ -5,6 +5,7 @@ import { EntitySystem } from "../systems/EntitySystem";
 import type { InventorySystem } from "../systems/InventorySystem";
 import type { UISystem } from "../systems/UISystem";
 import type { InputSystem } from "../systems/InputSystem";
+import type { SpawnSystem } from "../systems/SpawnSystem";
 import type { IWorld } from "../world/IWorld"; // Assuming IWorld is the new type for world
 
 /**
@@ -20,6 +21,7 @@ export class GameContext {
     public inventorySystem?: InventorySystem;
     public uiSystem?: UISystem;
     public inputSystem?: InputSystem; // Added inputSystem property
+    public spawnSystem?: SpawnSystem; // Added spawnSystem property
 
     private constructor() { }
 

@@ -277,6 +277,9 @@ export class Game {
     if (context.entitySystem) {
       context.entitySystem.update(delta, time / 1000);
     }
+    if (context.spawnSystem) {
+      context.spawnSystem.update(time / 1000);
+    }
     this.profiler?.endMeasure('entities-update');
 
 
