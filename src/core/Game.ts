@@ -3,7 +3,6 @@ import { GameState } from "./GameState";
 import { World } from "../world/World";
 import { Environment } from "../world/Environment";
 import { ItemEntity } from "../entities/ItemEntity";
-import { MobManager } from "../mobs/MobManager";
 import { Player } from "../player/Player";
 import { BlockCursor } from "../blocks/BlockCursor";
 import { BlockBreaking } from "../blocks/BlockBreaking";
@@ -42,7 +41,6 @@ export class Game {
   public world: World;
   public environment: Environment;
   public entities: ItemEntity[];
-  public mobManager: MobManager;
   public player: Player;
   public blockCursor: BlockCursor;
   public blockBreaking: BlockBreaking;
@@ -76,7 +74,6 @@ export class Game {
     world: World,
     environment: Environment,
     entities: ItemEntity[],
-    mobManager: MobManager,
     player: Player,
     blockCursor: BlockCursor,
     blockBreaking: BlockBreaking,
@@ -93,7 +90,6 @@ export class Game {
     this.world = world;
     this.environment = environment;
     this.entities = entities;
-    this.mobManager = mobManager;
     this.player = player;
 
     this.blockCursor = blockCursor;
@@ -283,15 +279,7 @@ export class Game {
     }
     this.profiler?.endMeasure('entities-update');
 
-    // Mobs
-    this.profiler?.startMeasure('mobs-update');
-    this.mobManager.update(
-      delta,
-      this.player, // Pass full player object
-      this.environment,
-      (amt) => this.player.health.takeDamage(amt),
-    );
-    this.profiler?.endMeasure('mobs-update');
+
 
     // Cursor
     if (this.gameState.getGameStarted()) {

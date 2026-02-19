@@ -11,7 +11,6 @@ import { CraftingSystem } from "../crafting/CraftingSystem";
 import { CraftingUI } from "../crafting/CraftingUI";
 import { FurnaceManager } from "../crafting/FurnaceManager";
 import { FurnaceUI } from "../crafting/FurnaceUI";
-import { MobManager } from "../mobs/MobManager";
 import { BlockCursor } from "../blocks/BlockCursor";
 import { BlockBreaking } from "../blocks/BlockBreaking";
 import { BlockInteraction } from "../blocks/BlockInteraction";
@@ -106,8 +105,7 @@ export class GameInitializer {
       world.noiseTexture!,
     );
 
-    // Mob Manager
-    const mobManager = new MobManager(world, scene, entities);
+
 
     // Systems
     const entitySystem = new EntitySystem(entities, player);
@@ -141,7 +139,6 @@ export class GameInitializer {
     const furnaceManager = FurnaceManager.getInstance();
     const furnaceUI = new FurnaceUI(furnaceManager, dragDrop);
 
-    // Block Interaction
     const blockInteraction = new BlockInteraction(
       camera,
       scene,
@@ -149,7 +146,6 @@ export class GameInitializer {
       () => inventory.getSelectedSlotItem(),
       cursorMesh,
       crackMesh,
-      () => mobManager.mobs,
     );
 
     // Game instance (will be set after initialization)
@@ -298,7 +294,6 @@ export class GameInitializer {
       world,
       environment,
       entities,
-      mobManager,
       player,
       blockCursor,
       blockBreaking,

@@ -45,7 +45,6 @@ async function initializeGame() {
     systems.world,
     systems.environment,
     systems.entities,
-    systems.mobManager,
     systems.player,
     systems.blockCursor,
     systems.blockBreaking,

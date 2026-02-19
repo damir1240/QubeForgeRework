@@ -4,7 +4,6 @@ import { Scene } from "three";
 import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { World } from "../world/World";
 import { BLOCK } from "../constants/Blocks";
-import { Mob } from "../mobs/Mob";
 import {
   PLAYER_HALF_WIDTH,
   PLAYER_HEIGHT,
@@ -29,7 +28,6 @@ export class BlockInteraction {
   private readonly EAT_DURATION = 1.5; // Seconds
 
   private getSelectedSlotItem: () => { id: number; count: number };
-  private getMobs?: () => Mob[];
 
   constructor(
     camera: PerspectiveCamera,
@@ -38,7 +36,6 @@ export class BlockInteraction {
     getSelectedSlotItem: () => { id: number; count: number },
     cursorMesh?: THREE.Mesh,
     crackMesh?: THREE.Mesh,
-    getMobs?: () => Mob[],
   ) {
     this.camera = camera;
     this.scene = scene;
@@ -46,7 +43,7 @@ export class BlockInteraction {
     this.getSelectedSlotItem = getSelectedSlotItem;
     this.cursorMesh = cursorMesh;
     this.crackMesh = crackMesh;
-    this.getMobs = getMobs;
+    this.crackMesh = crackMesh;
     this.raycaster = new THREE.Raycaster();
   }
 
@@ -126,8 +123,7 @@ export class BlockInteraction {
         i.object !== this.crackMesh &&
         i.object !== this.controls.object &&
         (i.object as any).isMesh &&
-        !(i.object as any).isItem &&
-        !(i.object.parent as any)?.isMob,
+        !(i.object as any).isItem,
     );
 
     if (hit && hit.distance < this.MAX_DISTANCE) {
@@ -187,34 +183,6 @@ export class BlockInteraction {
           ) {
             // Cannot place block inside player
             return;
-          }
-
-          // Check collision with mobs
-          if (this.getMobs) {
-            const mobs = this.getMobs();
-            let mobCollision = false;
-            for (const mob of mobs) {
-              const mobPos = mob.mesh.position;
-              const mobMinX = mobPos.x - mob.width / 2;
-              const mobMaxX = mobPos.x + mob.width / 2;
-              const mobMinY = mobPos.y;
-              const mobMaxY = mobPos.y + mob.height;
-              const mobMinZ = mobPos.z - mob.width / 2;
-              const mobMaxZ = mobPos.z + mob.width / 2;
-
-              if (
-                mobMinX < blockMaxX &&
-                mobMaxX > blockMinX &&
-                mobMinY < blockMaxY &&
-                mobMaxY > blockMinY &&
-                mobMinZ < blockMaxZ &&
-                mobMaxZ > blockMinZ
-              ) {
-                mobCollision = true;
-                break;
-              }
-            }
-            if (mobCollision) return;
           }
 
           // Emit event for placement (Game/Inventory will handle actual logic)
