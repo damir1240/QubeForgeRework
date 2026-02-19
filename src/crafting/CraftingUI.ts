@@ -167,7 +167,7 @@ export class CraftingUI {
 
   public setVisible(visible: boolean, isCraftingTable: boolean) {
     if (visible) {
-      this.craftingArea.style.display = this.isMobile ? "none" : "flex";
+      this.craftingArea.style.display = "flex";
       if (this.mobileList) {
         this.mobileList.setVisible(this.isMobile);
       }

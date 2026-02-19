@@ -140,3 +140,23 @@
     width: 20px;
     height: 20px;
 }
+
+.is-mobile #crafting-area {
+    gap: 5px;
+    margin-bottom: 10px;
+    padding: 5px;
+}
+
+.is-mobile #crafting-grid-container {
+    grid-template-columns: repeat(2, 30px);
+    grid-template-rows: repeat(2, 30px);
+}
+
+.is-mobile #crafting-grid-container.grid-3x3 {
+    grid-template-columns: repeat(3, 30px);
+    grid-template-rows: repeat(3, 30px);
+}
+
+.is-mobile .crafting-arrow {
+    font-size: 16px;
+}
