@@ -164,7 +164,7 @@ export class KeyboardHandler {
           if (isInvOpen) {
             // Set flag BEFORE emitting event to prevent race condition
             this.gameState.setIsResuming(true);
-            eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
+            eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromEscape: true });
             return; // Important: return here to prevent pause menu from opening
           }
 

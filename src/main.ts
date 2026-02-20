@@ -89,10 +89,11 @@ async function initializeGame() {
     eventManager.on(GameEvents.OPEN_FURNACE, (data: any) => inventoryController.toggle("furnace", data));
     eventManager.on(GameEvents.UI_TOGGLE_INVENTORY, (data: any) => {
       const forceClose = data?.forceClose === true;
+      const fromEscape = data?.fromEscape === true;
       const invMenu = document.getElementById("inventory-menu")!;
       const isOpen = invMenu.style.display === "flex";
       if (forceClose && !isOpen) return;
-      inventoryController.toggle(false);
+      inventoryController.toggle(false, undefined, fromEscape);
     });
     eventManager.on(GameEvents.UI_TOGGLE_PAUSE, (data: any) => {
       game.menus.togglePauseMenu(data?.forceClose);

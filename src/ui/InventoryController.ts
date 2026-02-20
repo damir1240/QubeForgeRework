@@ -60,6 +60,7 @@ export class InventoryController {
   toggle(
     param: boolean | "furnace" = false,
     furnacePos?: { x: number; y: number; z: number },
+    fromEscape: boolean = false,
   ): void {
     const inventoryMenu = document.getElementById("inventory-menu")!;
     const crosshair = document.getElementById("crosshair")!;
@@ -153,8 +154,10 @@ export class InventoryController {
       if (!this.gameState.getIsResuming()) {
         this.gameState.setIsResuming(true);
       }
-      
-      this.controls.lock();
+
+      if (!fromEscape) {
+        this.controls.lock();
+      }
 
       // Reset flag after a short delay
       setTimeout(() => {
