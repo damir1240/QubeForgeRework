@@ -15,7 +15,7 @@ export class InventorySystem {
 
     private setupListeners(): void {
         // Listen for Item Pickups
-        eventManager.on<{ itemId: number; count: number; entityId: number }>(GameEvents.ITEM_PICKUP, (event) => {
+        eventManager.on<{ itemId: number; count: number; entityId: string }>(GameEvents.ITEM_PICKUP, (event) => {
             const { itemId, count, entityId } = event;
             const remaining = this.inventory.addItem(itemId, count);
 

@@ -20,6 +20,9 @@ import type { IEntity } from "../entities/IEntity";
 import { HotbarLabel } from "../ui/HotbarLabel";
 import { HealthBar } from "../ui/HealthBar";
 import { Game } from "../core/Game";
+import {
+  ITEM_ENTITY,
+} from "../constants/GameConstants";
 import { BLOCK } from "../constants/Blocks";
 import { BLOCK_NAMES } from "../constants/BlockNames";
 import { initDebugControls } from "../utils/DebugUtils";
@@ -192,6 +195,7 @@ export class GameInitializer {
               z,
               d.id,
               d.count,
+              ITEM_ENTITY.PICKUP_DELAY_BLOCK
             ),
           );
         });
@@ -214,6 +218,8 @@ export class GameInitializer {
               y,
               z,
               dropId,
+              1,
+              ITEM_ENTITY.PICKUP_DELAY_BLOCK
             ),
           );
         }
@@ -280,11 +286,53 @@ export class GameInitializer {
       }
     });
 
-    // 4. UI Events
-    eventManager.on(GameEvents.OPEN_CRAFTING, () => {
-      // Placeholder for opening crafting. 
-      // Logic needs to be handled by UI system or MainMenu
+    // 5. Item Dropped
+    eventManager.on(GameEvents.ITEM_DROP, () => {
+      const slotIndex = inventory.getSelectedSlot();
+      const slot = inventory.getSlot(slotIndex);
+
+      if (slot.id !== 0 && slot.count > 0) {
+        const dropId = slot.id;
+
+        // Decrement inventory
+        slot.count--;
+        if (slot.count <= 0) {
+          slot.id = 0;
+          slot.count = 0;
+        }
+        inventoryUI.refresh();
+        inventoryUI.emitInventoryChange();
+
+        // Minecraft Drop Logic:
+        // Spawn at player eye level - 0.3
+        const pos = player.getPosition().clone();
+        const eyeHeight = 1.6; // Constant
+        pos.y += eyeHeight - 0.3;
+
+        const dir = new THREE.Vector3();
+        controls.getDirection(dir);
+
+        // Initial momentum (Minecraft-like: speed ~6m/s + small random)
+        const vx = dir.x * 6.0;
+        const vz = dir.z * 6.0;
+        const vy = dir.y * 6.0 + 2.5; // Adding upward arc for a better toss
+
+        const item = new ItemEntity(
+          world,
+          scene,
+          pos.x - 0.5,
+          pos.y - 0.5,
+          pos.z - 0.5,
+          dropId,
+          1,
+          ITEM_ENTITY.PICKUP_DELAY_PLAYER
+        );
+
+        item.setVelocity(new THREE.Vector3(vx, vy, vz));
+        entities.push(item);
+      }
     });
+
     // --- END EVENT WIRING ---
 
     // Inventory change callback

@@ -18,6 +18,7 @@ export class ItemEntity implements IEntity {
   private physics: ItemPhysics;
   private lifecycle: ItemLifecycle;
   private timeOffset: number;
+  private pickupDelay: number;
 
   constructor(
     world: World,
@@ -27,12 +28,14 @@ export class ItemEntity implements IEntity {
     z: number,
     type: number,
     count: number = 1,
+    pickupDelay: number = 0
   ) {
     this.id = self.crypto?.randomUUID ? self.crypto.randomUUID() : Math.random().toString(36).substring(2, 11);
     this.type = type;
     this.count = count;
     this.scene = scene;
     this.timeOffset = Math.random() * 100;
+    this.pickupDelay = pickupDelay;
 
     // Create mesh
     this.mesh = ItemRenderer.createMesh(type);
@@ -46,7 +49,7 @@ export class ItemEntity implements IEntity {
     this.scene.add(this.mesh);
   }
 
-  public update(time: number, delta: number) {
+  public update(delta: number, time: number) {
     // Check lifecycle
     if (!this.lifecycle.update()) {
       this.isDead = true;
@@ -59,6 +62,18 @@ export class ItemEntity implements IEntity {
 
     // Rotation animation
     this.mesh.rotation.y = time * ITEM_ENTITY.ROTATION_SPEED + this.timeOffset;
+  }
+
+  public attractTo(target: THREE.Vector3) {
+    this.physics.attractTo(target);
+  }
+
+  public setVelocity(v: THREE.Vector3) {
+    this.physics.setVelocity(v);
+  }
+
+  public canPickup(): boolean {
+    return this.lifecycle.getAge() > this.pickupDelay;
   }
 
   public getPosition(): THREE.Vector3 {

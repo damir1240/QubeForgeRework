@@ -41,8 +41,9 @@ export class AIMovement {
         const dir = new THREE.Vector3(this.physics.velocity.x, 0, this.physics.velocity.z).normalize();
 
         // Raycast-like check: check blocks in front of the entity at feet level and eye level
-        // We check a small distance ahead of the entity's boundary
-        const checkDist = 0.6;
+        // We check just at the edge of the entity's boundary so it doesn't jump too early.
+        // If entity width is 0.9, half width is 0.45. Let's check 0.5 ahead.
+        const checkDist = 0.5;
         const checkPos = this.entity.position.clone().addScaledVector(dir, checkDist);
 
         const bx = Math.floor(checkPos.x);
@@ -54,10 +55,18 @@ export class AIMovement {
         const blockAtEyes = this.world.getBlock(bx, by + 1, bz); // Next block up
         const blockTwoAbove = this.world.getBlock(bx, by + 2, bz); // Ceiling check
 
-        // If there's a block in front (at feet or eyes level) and NO block 2 levels above
-        // This means it's a 1-block step or a slab/small obstacle.
-        if ((blockAtFeet !== 0 || blockAtEyes !== 0) && blockTwoAbove === 0) {
+        const obstacleAhead = (blockAtFeet !== 0 || blockAtEyes !== 0);
+        const hasHeadroom = (blockTwoAbove === 0);
+
+        // И дополнительно проверим, есть ли блок, на который можно запрыгнуть
+        // В оригинале, если животное идет в стену и сверху пусто - оно всегда прыгает.
+        if (obstacleAhead && hasHeadroom) {
             this.physics.jump(this.options.jumpForce);
+        } else if (obstacleAhead && !hasHeadroom) {
+            // Если над стеной тоже блок (т.е. стена высотой в 2+ блока),
+            // мы не прыгаем, чтобы не биться головой, а просто останавливаемся.
+            this.physics.velocity.x = 0;
+            this.physics.velocity.z = 0;
         }
     }
 

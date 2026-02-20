@@ -3,16 +3,18 @@ import { ITEM_ENTITY } from "../constants/GameConstants";
 
 export class ItemLifecycle {
   private creationTime: number;
+  private mesh: THREE.Mesh;
   public isDead: boolean = false;
 
-  constructor(private mesh: THREE.Mesh) {
+  constructor(mesh: THREE.Mesh) {
+    this.mesh = mesh;
     this.creationTime = performance.now();
   }
 
   public update(): boolean {
     const age = performance.now() - this.creationTime;
 
-    if (age > ITEM_ENTITY.MAX_AGE) {
+    if (age > ITEM_ENTITY.DESPAWN_TIME) {
       this.isDead = true;
       return false;
     }

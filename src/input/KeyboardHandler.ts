@@ -147,11 +147,16 @@ export class KeyboardHandler {
           eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
         }
         break;
+      case "KeyQ":
+        if (!this.gameState.getPaused() && this.gameState.getGameStarted() && !isInventoryOpen) {
+          eventManager.emit(GameEvents.ITEM_DROP, {});
+        }
+        break;
       case "Escape":
         {
           event.preventDefault();
           event.stopPropagation();
-          
+
           const invMenu = document.getElementById("inventory-menu")!;
           const isInvOpen = invMenu.style.display === "flex";
 
@@ -162,7 +167,7 @@ export class KeyboardHandler {
             eventManager.emit(GameEvents.UI_TOGGLE_INVENTORY, { fromKeyboard: true });
             return; // Important: return here to prevent pause menu from opening
           }
-          
+
           // Only open pause menu if no GUI is open
           if (this.gameState.getGameStarted()) {
             eventManager.emit(GameEvents.UI_TOGGLE_PAUSE, {});

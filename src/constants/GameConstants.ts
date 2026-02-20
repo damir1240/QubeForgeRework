@@ -26,16 +26,20 @@ export const ITEM_ENTITY = {
   SIZE_BLOCK: 0.3,
   SIZE_FLAT: 0.5,
   COLLISION_OFFSET: 0.15, // Half of SIZE_BLOCK
-  MAX_AGE: 180000, // 3 minutes
-  BLINK_START: 10000, // Start blinking 10 seconds before death
-  BLINK_INTERVAL: 250, // Blink every 250ms
+  MAX_AGE: 180000,
+  BLINK_START: 10000,
+  BLINK_INTERVAL: 250,
   FLOAT_AMPLITUDE: 0.05,
   FLOAT_SPEED: 3,
   ROTATION_SPEED: 2,
+  PICKUP_DELAY_PLAYER: 2000,
+  PICKUP_DELAY_BLOCK: 500,
+  DESPAWN_TIME: 300000, // 5 minutes like Minecraft
 };
 
 // Game Loop Constants
-export const PICKUP_DISTANCE = 2.5;
+export const PICKUP_DISTANCE = 1.3; // For better head-to-feet coverage
+export const ATTRACTION_DISTANCE = 3.0;
 export const ENTITY_VISIBILITY_DISTANCE = 40;
 
 // Player Health Constants

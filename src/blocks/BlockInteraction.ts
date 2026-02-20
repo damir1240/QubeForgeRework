@@ -11,6 +11,7 @@ import {
 } from "../constants/GameConstants";
 import { isTool } from "../utils/ItemUtils";
 import { eventManager } from "../core/EventManager";
+import { GameContext } from "../core/GameContext";
 import { GameEvents } from "../core/GameEvents";
 
 export class BlockInteraction {
@@ -173,16 +174,56 @@ export class BlockInteraction {
           const blockMinZ = pz;
           const blockMaxZ = pz + 1;
 
-          if (
-            playerMinX < blockMaxX &&
-            playerMaxX > blockMinX &&
-            playerMinY < blockMaxY &&
-            playerMaxY > blockMinY &&
-            playerMinZ < blockMaxZ &&
-            playerMaxZ > blockMinZ
-          ) {
-            // Cannot place block inside player
-            return;
+          const context = GameContext.getInstance();
+          const entitySystem = context.entitySystem;
+
+          if (entitySystem) {
+            const entities = entitySystem.getEntities();
+            for (const entity of entities) {
+              // Approximate bounding box bounds (assuming 0.6 width and 1.8 height for player, 0.9 for mobs)
+              // The exact Bounding Box should ideally come from entity.physics, but physics is not exposed on IEntity.
+              // For a robust check, let's use a generic 0.9x0.9 default size around the entity position.
+              // In an ideal ECS this is cleaner, but this will work for now based on position coordinates.
+
+              // If it's the player, the check is already done above, but we can do a general check:
+              const ePos = entity.position;
+
+              // Try to get width/height if available, otherwise fallback
+              const width = (entity as any).physics?.width ?? 0.8;
+              const height = (entity as any).physics?.height ?? 1.8;
+              const halfW = width / 2;
+
+              const eMinX = ePos.x - halfW;
+              const eMaxX = ePos.x + halfW;
+              const eMinY = ePos.y;
+              const eMaxY = ePos.y + height;
+              const eMinZ = ePos.z - halfW;
+              const eMaxZ = ePos.z + halfW;
+
+              if (
+                eMinX < blockMaxX &&
+                eMaxX > blockMinX &&
+                eMinY < blockMaxY &&
+                eMaxY > blockMinY &&
+                eMinZ < blockMaxZ &&
+                eMaxZ > blockMinZ
+              ) {
+                return; // Cannot place block inside an entity
+              }
+            }
+          } else {
+            // Fallback to just player check if entitySystem not available
+            if (
+              playerMinX < blockMaxX &&
+              playerMaxX > blockMinX &&
+              playerMinY < blockMaxY &&
+              playerMaxY > blockMinY &&
+              playerMinZ < blockMaxZ &&
+              playerMaxZ > blockMinZ
+            ) {
+              // Cannot place block inside player
+              return;
+            }
           }
 
           // Emit event for placement (Game/Inventory will handle actual logic)

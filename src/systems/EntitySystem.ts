@@ -3,7 +3,7 @@ import { ItemEntity } from "../entities/ItemEntity";
 import type { IPlayer } from "../player/IPlayer";
 import { eventManager } from "../core/EventManager";
 import { GameEvents } from "../core/GameEvents";
-import { PICKUP_DISTANCE, ENTITY_VISIBILITY_DISTANCE } from "../constants/GameConstants";
+import { PICKUP_DISTANCE, ATTRACTION_DISTANCE, ENTITY_VISIBILITY_DISTANCE } from "../constants/GameConstants";
 
 export class EntitySystem {
     private entities: IEntity[];
@@ -52,13 +52,18 @@ export class EntitySystem {
                 continue;
             }
 
-            // Item-specific logic (Pickup)
-            if (entity instanceof ItemEntity && distance < PICKUP_DISTANCE) {
-                eventManager.emit<{ itemId: number; count: number; entityId: string }>(GameEvents.ITEM_PICKUP, {
-                    itemId: entity.type,
-                    count: entity.count,
-                    entityId: entity.id,
-                });
+            // Item-specific logic
+            if (entity instanceof ItemEntity) {
+                if (distance < PICKUP_DISTANCE && entity.canPickup()) {
+                    eventManager.emit<{ itemId: number; count: number; entityId: string }>(GameEvents.ITEM_PICKUP, {
+                        itemId: entity.type,
+                        count: entity.count,
+                        entityId: entity.id,
+                    });
+                } else if (distance < ATTRACTION_DISTANCE && entity.canPickup()) {
+                    // Smooth pickup: attract to player
+                    entity.attractTo(playerPos);
+                }
             }
         }
     }
@@ -68,5 +73,9 @@ export class EntitySystem {
             this.entities[index].dispose();
             this.entities.splice(index, 1);
         }
+    }
+
+    public getEntities(): IEntity[] {
+        return this.entities;
     }
 }
